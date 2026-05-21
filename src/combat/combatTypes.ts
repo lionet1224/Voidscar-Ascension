@@ -26,6 +26,8 @@ export interface CombatActor {
   speed: number;
   attackCooldown: number;
   attackTimer: number;
+  skillCooldown?: number;
+  skillTimer?: number;
   ownerActorId?: string;
   sourceSkillId?: string;
   durationMs?: number;

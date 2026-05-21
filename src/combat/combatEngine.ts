@@ -99,6 +99,8 @@ export function createCombatSession(options: {
     speed: 92 * stats.moveSpeed,
     attackCooldown: 1000,
     attackTimer: 0,
+    skillCooldown: 0,
+    skillTimer: 0,
     statusEffects: [],
   };
   return {
@@ -174,6 +176,7 @@ export function tickCombat(session: CombatSession, deltaMs: number): CombatSessi
   separateCombatants(next);
   updateSummons(next, deltaMs);
   castPlayerSkill(next);
+  resolveMonsterSkills(next, deltaMs);
   resolveMonsterAttacks(next, deltaMs);
   maybeTriggerEmberJudgement(next);
   cleanup(next);
@@ -451,6 +454,8 @@ function summonActor(session: CombatSession, skill: Skill) {
     speed: skill.id === "warrior_banner" || skill.id === "ranger_poison_trap" ? 0 : 110,
     attackCooldown: (skill.id === "warrior_banner" ? 850 : 700) * (1 - summonHaste),
     attackTimer: 0,
+    skillCooldown: 0,
+    skillTimer: 0,
     ownerActorId: "player",
     sourceSkillId: skill.id,
     durationMs: (skill.durationMs ?? 8000) * getSummonDurationMultiplier(session, skill),
@@ -522,6 +527,8 @@ function spawnShadowDecoy(session: CombatSession, position: Vector2, skill: Skil
     speed: 0,
     attackCooldown: 999999,
     attackTimer: 999999,
+    skillCooldown: 0,
+    skillTimer: 0,
     ownerActorId: "player",
     sourceSkillId: skill.id,
     durationMs: 2300,
@@ -564,6 +571,8 @@ function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) 
     speed: getMonsterMoveSpeed(type, template.moveSpeed ?? 64) * scaling.moveSpeed,
     attackCooldown: getMonsterAttackCooldown(type, template.attackRange),
     attackTimer: 600,
+    skillCooldown: getMonsterSkillCooldown(type),
+    skillTimer: getMonsterSkillCooldown(type) * (0.45 + Math.random() * 0.55),
     statusEffects: type === "elite" && name.includes("玄甲") ? [createStatus("hard_shell", undefined, 0)] : [],
   });
   if (type === "elite" && hasEquippedPower(session, "leg_sword_elite_shout")) {
@@ -676,14 +685,22 @@ function movePlayer(session: CombatSession, deltaMs: number) {
   const preferred = attackRange.ideal;
   const bossThreat = session.monsters.find((monster) => monster.monsterType === "boss");
   const pinnedByBoss = Boolean(bossThreat && nearestDistance < preferred * 1.05 && isNearWall(player.position, PLAYER_EDGE_MARGIN + 18));
+  const threatTooClose = nearestDistance < preferred * (movement.strategy === "kite" || movement.strategy === "avoidDanger" ? 0.92 : 0.78) || nearbyThreats.length >= 3;
   let desired: Vector2 | undefined;
   let reason: NonNullable<CombatSession["movementIntent"]>["reason"] = "retreat";
 
   const existingIntent = session.movementIntent;
+  const canContinueIntent =
+    existingIntent?.reason === "advance"
+      ? !threatTooClose && targetDistance > attackRange.max + 6
+      : existingIntent?.reason === "retreat"
+        ? nearestDistance < preferred * 1.08 || isNearWall(player.position, PLAYER_EDGE_MARGIN)
+        : true;
   if (
     existingIntent &&
     existingIntent.expiresAt > session.elapsedMs &&
     distance(player.position, existingIntent.target) > 18 &&
+    canContinueIntent &&
     !pinnedByBoss
   ) {
     desired = existingIntent.target;
@@ -692,10 +709,10 @@ function movePlayer(session: CombatSession, deltaMs: number) {
     if (pinnedByBoss) {
       desired = kiteEscapePoint(player.position, bossThreat!.position, dangerCenter, 170);
       reason = "orbit";
-    } else if (nearestDistance < preferred * 0.78 || nearbyThreats.length >= 3) {
-      desired = kiteEscapePoint(player.position, nearest.position, dangerCenter, 135);
+    } else if (threatTooClose) {
+      desired = kiteEscapePoint(player.position, nearest.position, dangerCenter, 155);
       reason = isNearWall(player.position, PLAYER_EDGE_MARGIN) ? "orbit" : "retreat";
-    } else if (targetDistance > attackRange.max + 24 && nearestDistance > preferred * 0.92) {
+    } else if (targetDistance > attackRange.max + 48 && nearestDistance > preferred * 1.08) {
       desired = pointAtRangeFromTarget(player.position, target.position, preferred);
       reason = "advance";
     }
@@ -703,10 +720,10 @@ function movePlayer(session: CombatSession, deltaMs: number) {
     if (pinnedByBoss) {
       desired = kiteEscapePoint(player.position, bossThreat!.position, dangerCenter, 150);
       reason = "orbit";
-    } else if (nearestDistance < preferred * 0.68) {
-      desired = kiteEscapePoint(player.position, nearest.position, dangerCenter, 105);
+    } else if (nearestDistance < preferred * 0.78) {
+      desired = kiteEscapePoint(player.position, nearest.position, dangerCenter, 125);
       reason = isNearWall(player.position, PLAYER_EDGE_MARGIN) ? "orbit" : "retreat";
-    } else if (targetDistance > attackRange.max + 18 && nearestDistance > preferred * 0.86) {
+    } else if (targetDistance > attackRange.max + 40 && nearestDistance > preferred * 0.98) {
       desired = pointAtRangeFromTarget(player.position, target.position, preferred);
       reason = "advance";
     }
@@ -724,7 +741,7 @@ function movePlayer(session: CombatSession, deltaMs: number) {
   if (!existingIntent || existingIntent.expiresAt <= session.elapsedMs || distance(existingIntent.target, desired) > 46 || pinnedByBoss) {
     session.movementIntent = {
       target: desired,
-      expiresAt: session.elapsedMs + (reason === "orbit" ? 900 : 650),
+      expiresAt: session.elapsedMs + (reason === "orbit" ? 1100 : reason === "retreat" ? 950 : 520),
       reason,
     };
   }
@@ -805,6 +822,135 @@ function separateCombatants(session: CombatSession) {
       b.position.x = clamp(b.position.x + (dx / length) * push, 18, ARENA - 18);
       b.position.y = clamp(b.position.y + (dy / length) * push, 18, ARENA - 18);
     }
+  }
+}
+
+function resolveMonsterSkills(session: CombatSession, deltaMs: number) {
+  session.monsters.forEach((monster) => {
+    if (monster.hp <= 0 || monster.statusEffects.some((status) => status.id === "freeze" || status.id === "stun")) return;
+    monster.skillTimer = (monster.skillTimer ?? getMonsterSkillCooldown(monster.monsterType)) - deltaMs;
+    if ((monster.skillTimer ?? 0) > 0) return;
+    monster.skillTimer = (monster.skillCooldown ?? getMonsterSkillCooldown(monster.monsterType)) * (0.86 + Math.random() * 0.28);
+    const target = getMonsterTarget(session, monster);
+    const targetDistance = distance(monster.position, target.position);
+
+    if (monster.monsterType === "healer") {
+      const ally = session.monsters
+        .filter((candidate) => candidate.id !== monster.id && candidate.hp > 0 && candidate.hp < candidate.maxHp && distance(candidate.position, monster.position) <= 210)
+        .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+      if (ally) {
+        const healing = ally.maxHp * 0.1;
+        ally.hp = clamp(ally.hp + healing, 0, ally.maxHp);
+        float(session, ally.position, "生", `+${Math.floor(healing)}`, "heal", healing);
+        addEffect(session, { kind: "line", from: monster.position, to: ally.position, color: "#22c55e", radius: 18, width: 3, durationMs: 620 });
+        return;
+      }
+    }
+
+    if (monster.monsterType === "shieldBearer") {
+      const allies = session.monsters.filter((candidate) => candidate.hp > 0 && distance(candidate.position, monster.position) <= 145);
+      allies.forEach((ally) => {
+        ally.shield += ally.maxHp * 0.08;
+      });
+      float(session, monster.position, "盾", "玄甲", "shield", 0);
+      addEffect(session, { kind: "ring", from: monster.position, to: monster.position, color: "#94a3b8", radius: 145, width: 4, durationMs: 720 });
+      return;
+    }
+
+    if (monster.monsterType === "summoner" && session.monsters.length < 18) {
+      const beforeCount = session.monsters.length;
+      spawnMonster(session, Math.random() > 0.55 ? "trash" : "ranged");
+      const summoned = session.monsters[beforeCount];
+      if (summoned) {
+        summoned.position = {
+          x: clamp(monster.position.x + Math.random() * 58 - 29, 24, ARENA - 24),
+          y: clamp(monster.position.y + Math.random() * 58 - 29, 24, ARENA - 24),
+        };
+        summoned.hp *= 0.62;
+        summoned.maxHp *= 0.62;
+      }
+      float(session, monster.position, "召", "唤煞", "shield", 0);
+      addEffect(session, { kind: "ring", from: monster.position, to: monster.position, color: "#7c3aed", radius: 92, width: 3, durationMs: 760 });
+      return;
+    }
+
+    if (monster.monsterType === "bomber" && targetDistance <= 125) {
+      applyMonsterDamage(session, monster, target, monster.attack * 1.65, "爆裂");
+      addEffect(session, { kind: "ring", from: monster.position, to: monster.position, color: "#ef4444", radius: 125, width: 5, durationMs: 760 });
+      monster.hp = 0;
+      return;
+    }
+
+    if (monster.monsterType === "charger" && targetDistance > 58 && targetDistance <= 245) {
+      const before = { ...monster.position };
+      moveToward(monster, target.position, 1450, monster.radius + target.radius + 8);
+      addEffect(session, { kind: "line", from: before, to: monster.position, color: "#f97316", radius: 20, width: 5, durationMs: 640 });
+      if (distance(monster.position, target.position) <= monster.radius + target.radius + 22) {
+        applyMonsterDamage(session, monster, target, monster.attack * 1.25, "冲锋");
+        if (target.type === "player") addStatus(target, createStatus("monster_slow", undefined, 0));
+      }
+      return;
+    }
+
+    if (monster.monsterType === "boss") {
+      castBossSkill(session, monster, target);
+      return;
+    }
+
+    if (monster.monsterType === "elite") {
+      castEliteSkill(session, monster, target);
+      return;
+    }
+
+    if ((monster.monsterType === "ranged" || monster.monsterType === "summoner" || monster.monsterType === "healer") && targetDistance <= 285) {
+      applyMonsterDamage(session, monster, target, monster.attack * 0.92, "咒弹");
+      addEffect(session, { kind: "bolt", from: monster.position, to: target.position, color: "#a855f7", radius: 18, width: 3, durationMs: 650 });
+      if (target.type === "player" && Math.random() < 0.28) addStatus(target, createStatus(monster.name.includes("雷") ? "shock" : "poison", undefined, monster.attack * 0.28));
+    }
+  });
+}
+
+function castBossSkill(session: CombatSession, monster: CombatActor, target: CombatActor) {
+  const roll = Math.random();
+  if (roll < 0.42) {
+    applyMonsterDamage(session, monster, target, monster.attack * 1.18, "劫火斩");
+    addEffect(session, { kind: "orb", from: monster.position, to: target.position, color: "#ef4444", radius: 20, width: 4, durationMs: 760 });
+    if (target.type === "player") addStatus(target, createStatus("burn", undefined, monster.attack * 0.32));
+    return;
+  }
+  if (roll < 0.78) {
+    const center = { ...target.position };
+    if (distance(session.player.position, center) <= 135) applyMonsterDamage(session, monster, session.player, monster.attack * 0.9, "煞域");
+    session.summons
+      .filter((summon) => distance(summon.position, center) <= 135)
+      .forEach((summon) => applyMonsterDamage(session, monster, summon, monster.attack * 0.75, "煞域"));
+    addEffect(session, { kind: "ring", from: center, to: center, color: "#dc2626", radius: 135, width: 5, durationMs: 820 });
+    return;
+  }
+  if (session.monsters.length < 20) {
+    const beforeCount = session.monsters.length;
+    spawnMonster(session, "trash");
+    const guard = session.monsters[beforeCount];
+    if (guard) {
+      guard.position = {
+        x: clamp(monster.position.x + Math.random() * 90 - 45, 24, ARENA - 24),
+        y: clamp(monster.position.y + Math.random() * 90 - 45, 24, ARENA - 24),
+      };
+      guard.hp *= 0.7;
+      guard.maxHp *= 0.7;
+    }
+    float(session, monster.position, "令", "劫卫", "shield", 0);
+  }
+}
+
+function castEliteSkill(session: CombatSession, monster: CombatActor, target: CombatActor) {
+  const hasFire = monster.name.includes("火") || monster.eliteAffixes?.some((affix) => affix.includes("火"));
+  const hasIce = monster.name.includes("冰") || monster.eliteAffixes?.some((affix) => affix.includes("冰"));
+  const color = hasIce ? "#38bdf8" : hasFire ? "#fb923c" : "#facc15";
+  if (distance(monster.position, target.position) <= 210) {
+    applyMonsterDamage(session, monster, target, monster.attack * 1.05, hasIce ? "冰牢" : hasFire ? "火环" : "雷链");
+    addEffect(session, { kind: hasFire ? "ring" : "bolt", from: monster.position, to: target.position, color, radius: hasFire ? 96 : 18, width: 4, durationMs: 700 });
+    if (target.type === "player") addStatus(target, createStatus(hasIce ? "monster_slow" : hasFire ? "burn" : "shock", undefined, monster.attack * 0.24));
   }
 }
 
@@ -940,6 +1086,7 @@ function createStatus(id: string, skill?: Skill, damageSeed = 0): CombatStatusEf
   if (id === "stun") return { ...base, name: "眩晕", type: "control", description: "短时间无法攻击。", durationMs: 1100, remainingMs: 1100 };
   if (id === "shock") return { ...base, name: "感电", type: "debuff", description: "受到雷电和范围伤害提高。", durationMs: 3600, remainingMs: 3600 };
   if (id === "mark") return { ...base, name: "灵识标记", type: "mark", description: "灵弓会优先攻击，受到灵弓伤害提高。", durationMs: 6000, remainingMs: 6000 };
+  if (id === "monster_slow") return { ...base, name: "煞气缠身", type: "debuff", description: "被煞气拖慢身形。", durationMs: 1800, remainingMs: 1800 };
   if (id === "sword_scar") return { ...base, name: "裂岳剑痕", type: "dot", description: "剑痕留地，持续割裂敌人。", durationMs: 4000, remainingMs: 4000, tickIntervalMs: 800, tickTimerMs: 800, damagePerTick: Math.max(2, damageSeed) };
   if (id === "flame_field") return { ...base, name: "劫焰残域", type: "dot", description: "火符余烬在地脉中继续燃烧。", durationMs: 4200, remainingMs: 4200, tickIntervalMs: 900, tickTimerMs: 900, damagePerTick: Math.max(2, damageSeed) };
   if (id === "elite_hunter") return { ...base, name: "猎煞余威", type: "buff", description: "刚斩煞将，杀意未散。", durationMs: 12000, remainingMs: 12000 };
@@ -1175,6 +1322,35 @@ function isFinalOathScene(session: CombatSession) {
   return session.bossName.includes("赤霄旧祖") || session.contentName.includes("赤霄遗址");
 }
 
+function getMonsterTarget(session: CombatSession, monster: CombatActor) {
+  const decoy = getShadowDecoy(session);
+  if (decoy && monster.statusEffects.some((status) => status.id === "shadow_decoy")) return decoy;
+  return session.player;
+}
+
+function applyMonsterDamage(session: CombatSession, monster: CombatActor, target: CombatActor, rawDamage: number, label: string) {
+  if (target.hp <= 0) return;
+  if (target.type !== "player") {
+    const summonReduction = hasEquippedPower(session, "leg_guardian_robes") ? 0.8 : 1;
+    const damage = Math.max(1, (rawDamage - target.armor * 0.12) * summonReduction);
+    target.hp -= damage;
+    float(session, target.position, "", `${label}-${Math.floor(damage)}`, "damage", damage);
+    return;
+  }
+  const guardianReduction = hasEquippedPower(session, "leg_guardian_robes") && session.summons.length ? 0.9 : 1;
+  const movingReduction = session.player.statusEffects.some((status) => status.id === "moving_flow") && hasEquippedPower(session, "leg_void_boots") ? 0.85 : 1;
+  const shadowReduction = session.player.statusEffects.some((status) => status.id === "shadow_step_guard") ? 0.82 : 1;
+  const lowHpReduction = hasEquippedPower(session, "leg_sword_low_hp") && session.player.hp / session.player.maxHp <= 0.4 ? 0.9 : 1;
+  const damage = Math.max(1, (rawDamage - session.player.armor * 0.15) * guardianReduction * movingReduction * shadowReduction * lowHpReduction);
+  const absorbed = Math.min(session.player.shield, damage);
+  session.player.shield -= absorbed;
+  const hpDamage = preventFatalDamage(session, damage - absorbed);
+  session.player.hp -= hpDamage;
+  session.stats.damageTaken += hpDamage;
+  session.stats.shieldAbsorbed += absorbed;
+  float(session, session.player.position, "", `${label}-${Math.floor(damage)}`, "damage", damage);
+}
+
 function averagePosition(points: Vector2[]) {
   return {
     x: points.reduce((sum, point) => sum + point.x, 0) / Math.max(1, points.length),
@@ -1301,11 +1477,21 @@ function getMonsterAttackCooldown(type: CombatActor["monsterType"], attackRange?
   return 1220;
 }
 
+function getMonsterSkillCooldown(type: CombatActor["monsterType"]) {
+  if (type === "boss") return 3800;
+  if (type === "elite") return 4200;
+  if (type === "charger" || type === "bomber") return 4600;
+  if (type === "ranged") return 3600;
+  if (type === "healer" || type === "shieldBearer" || type === "summoner") return 5200;
+  return 6800;
+}
+
 function moveToward(actor: CombatActor, target: Vector2, deltaMs: number, stopDistance = 0) {
   const dx = target.x - actor.position.x;
   const dy = target.y - actor.position.y;
   const length = Math.hypot(dx, dy) || 1;
-  const step = Math.min((actor.speed * deltaMs) / 1000, Math.max(0, length - stopDistance));
+  const slowFactor = actor.statusEffects.some((status) => status.id === "monster_slow") ? 0.68 : 1;
+  const step = Math.min((actor.speed * slowFactor * deltaMs) / 1000, Math.max(0, length - stopDistance));
   actor.position.x = clamp(actor.position.x + (dx / length) * step, 18, ARENA - 18);
   actor.position.y = clamp(actor.position.y + (dy / length) * step, 18, ARENA - 18);
 }
