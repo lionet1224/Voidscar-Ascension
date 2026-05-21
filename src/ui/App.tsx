@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   BriefcaseBusiness,
+  CircleHelp,
   FlaskConical,
   Home,
   Layers,
@@ -21,12 +22,12 @@ import type { CombatSession } from "../combat/combatTypes";
 import type { GameSave, IdleClaimSummary } from "../types";
 import { addExp, getCharacterInventory, getCurrentCharacter } from "../systems/characterSystem";
 import { loadSave, saveGame } from "../systems/saveSystem";
-import { applyLoot, generateLoot } from "../systems/lootSystem";
+import { applyLoot } from "../systems/lootSystem";
 import { formatNumber } from "../systems/id";
 import { settleIdle } from "../systems/idleFarmSystem";
 import { Metric } from "./components/common";
 import { CharacterTopSummary, FloatingBattlePanel } from "./components/AppChrome";
-import { IdleClaimModal, PatchModal } from "./components/AppModals";
+import { IdleClaimModal, PatchModal, TutorialModal } from "./components/AppModals";
 import { useFloatingTooltipPosition } from "./hooks/useFloatingTooltipPosition";
 import type { PageId, PageProps } from "./pageTypes";
 import {
@@ -42,6 +43,7 @@ import {
   SeasonPage,
   SettingsPage,
   SkillsPage,
+  StartScreen,
 } from "./pages";
 
 const navItems: { id: PageId; label: string; icon: typeof Home }[] = [
@@ -59,7 +61,7 @@ const navItems: { id: PageId; label: string; icon: typeof Home }[] = [
 ];
 
 const devNavItems: { id: PageId; label: string; icon: typeof Home }[] = import.meta.env.DEV
-  ? [...navItems, { id: "database", label: "数据库", icon: FlaskConical }]
+  ? [...navItems, { id: "database", label: "万象图鉴", icon: FlaskConical }]
   : navItems;
 
 const pages: Record<PageId, (props: PageProps) => React.ReactNode> = {
@@ -81,12 +83,15 @@ export default function App() {
   useFloatingTooltipPosition();
   const [save, setSave] = useState<GameSave>();
   const [page, setPage] = useState<PageId>("home");
+  const [entryMode, setEntryMode] = useState<"start" | "characters">("start");
   const [idleClaim, setIdleClaim] = useState<IdleClaimSummary>();
   const [patchOpen, setPatchOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const battleSessionRef = useRef<CombatSession | undefined>(undefined);
   const [selectedActorId, setSelectedActorId] = useState("player");
   const saveRef = useRef<GameSave | undefined>(undefined);
   const completedCombatIds = useRef(new Set<string>());
+  const previousCharacterIdRef = useRef<string | undefined>(undefined);
   const activeCharacter = save ? getCurrentCharacter(save) : undefined;
   const activeInventory = save && activeCharacter ? getCharacterInventory(save, activeCharacter) : [];
   const activeSeason = save?.seasons.find((season) => season.id === CURRENT_SEASON_ID);
@@ -102,7 +107,7 @@ export default function App() {
       }
       setSave(next);
       setIdleClaim(claim);
-      setPatchOpen(next.settings.lastSeenPatchVersion !== CURRENT_VERSION);
+      setPatchOpen(false);
     });
   }, []);
 
@@ -115,6 +120,18 @@ export default function App() {
   useEffect(() => {
     saveRef.current = save;
   }, [save]);
+
+  const clearRuntimeState = () => {
+    battleSessionRef.current = undefined;
+    setSelectedActorId("player");
+  };
+
+  useEffect(() => {
+    const characterId = save?.currentCharacterId;
+    if (previousCharacterIdRef.current === characterId) return;
+    previousCharacterIdRef.current = characterId;
+    clearRuntimeState();
+  }, [save?.currentCharacterId]);
 
   const mutate = (updater: (draft: GameSave) => GameSave) => {
     setSave((current) => (current ? updater(current) : current));
@@ -130,17 +147,15 @@ export default function App() {
       const success = finalSession.state === "success";
       const riftTier = finalSession.riftTier ?? 0;
       const dungeonId = finalSession.dungeon?.id;
-      const contentLevel = riftTier ? character.level : (finalSession.dungeon?.recommendedLevel[1] ?? character.level);
-      const drops = success ? generateLoot(character, contentLevel, riftTier, 3 + Math.floor(riftTier / 10)) : [];
       const filter = current.lootFilters[0];
       const inventory = getCharacterInventory(current, character);
-      const loot = applyLoot(character.materials, character, drops, filter);
+      const loot = applyLoot(character.materials, character, finalSession.droppedItems ?? [], filter);
       const gold = success ? Math.floor(80 + character.level * 22 + riftTier * 30) : 15;
       const rewards = {
         exp: success ? Math.floor(120 + character.level * 35 + riftTier * 40) : 25,
         gold,
         embers: success ? 8 + Math.floor((riftTier || 1) * 0.8) : 1,
-        materials: { ...loot.materials, gold: (loot.materials.gold ?? 0) + gold },
+        materials: { ...loot.materials, gold: (loot.materials.gold ?? 0) + gold, spirit_stone: (loot.materials.spirit_stone ?? 0) + gold },
         itemIds: loot.kept.map((item) => item.id),
         salvagedCount: loot.salvagedCount,
       };
@@ -206,6 +221,7 @@ export default function App() {
     setBattleSession: (session?: CombatSession) => {
       battleSessionRef.current = session;
     },
+    clearRuntimeState,
     selectedActorId,
     setSelectedActorId,
   };
@@ -213,7 +229,19 @@ export default function App() {
   if (!activeCharacter) {
     return (
       <div className="entry-shell">
-        <CharacterPage {...pageProps} />
+        {entryMode === "start" ? (
+          <StartScreen
+            characterCount={save.characters.length}
+            onStart={() => setEntryMode("characters")}
+            onPatchNotes={() => setPatchOpen(true)}
+            onTutorial={() => setTutorialOpen(true)}
+          />
+        ) : (
+          <div className="entry-character-shell">
+            <button className="entry-back" onClick={() => setEntryMode("start")}>返回首页</button>
+            <CharacterPage {...pageProps} />
+          </div>
+        )}
         {patchOpen && (
           <PatchModal
             onClose={() => {
@@ -222,6 +250,7 @@ export default function App() {
             }}
           />
         )}
+        {tutorialOpen && <TutorialModal onClose={() => setTutorialOpen(false)} />}
       </div>
     );
   }
@@ -259,9 +288,13 @@ export default function App() {
           </div>
           <div className="topbar-metrics">
             <CharacterTopSummary character={activeCharacter} inventory={activeInventory} />
-            <Metric label="灵石" value={formatNumber(activeCharacter.materials.gold ?? 0)} />
+            <Metric label="灵石" value={formatNumber((activeCharacter.materials.gold ?? 0) + (activeCharacter.materials.spirit_stone ?? 0))} />
             <Metric label="劫火残烬" value={formatNumber(activeCharacter.seasonEmbers ?? 0)} />
-            <button onClick={() => mutate((draft) => ({ ...draft, currentCharacterId: undefined }))}>退出应劫者</button>
+            <button onClick={() => setTutorialOpen(true)}><CircleHelp size={17} /> 新手指引</button>
+            <button onClick={() => {
+              clearRuntimeState();
+              mutate((draft) => ({ ...draft, currentCharacterId: undefined }));
+            }}>退出应劫者</button>
             <button className="icon-btn" title="保存" onClick={() => saveGame(save)}>
               <Save size={17} />
             </button>
@@ -278,6 +311,7 @@ export default function App() {
         />
       )}
       {idleClaim && <IdleClaimModal claim={idleClaim} onClose={() => setIdleClaim(undefined)} />}
+      {tutorialOpen && <TutorialModal onClose={() => setTutorialOpen(false)} />}
       {page !== "battle" && <FloatingBattlePanel getBattleSession={() => battleSessionRef.current} setPage={setPage} />}
     </div>
   );

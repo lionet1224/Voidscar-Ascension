@@ -9,6 +9,7 @@ export interface PageProps {
   setPage: (page: PageId) => void;
   getBattleSession: () => CombatSession | undefined;
   setBattleSession: (session?: CombatSession) => void;
+  clearRuntimeState: () => void;
   selectedActorId: string;
   setSelectedActorId: (actorId: string) => void;
 }

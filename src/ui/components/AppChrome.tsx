@@ -15,7 +15,7 @@ export function CharacterTopSummary({ character, inventory }: { character: Chara
     <div className="top-character-card">
       <div>
         <strong>{character.name}</strong>
-        <span>{classNames[character.classId]} · Lv.{character.level} · 战力 {formatNumber(power)}</span>
+        <span>{classNames[character.classId]} · 等级 {character.level} · 战力 {formatNumber(power)}</span>
       </div>
       <div className="top-exp">
         <i style={{ width: `${expPercent}%` }} />

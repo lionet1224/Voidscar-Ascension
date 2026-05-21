@@ -1,6 +1,8 @@
 import type { CombatReport } from "../../types";
+import { getSkill } from "../../data/skills";
 import { formatNumber } from "../../systems/id";
 import { Stat } from "./common";
+import { SkillTooltip } from "./InfoTooltip";
 
 export function ReportSummary({ report, detailed = false }: { report: CombatReport; detailed?: boolean }) {
   const skills = Object.values(report.actors.player?.skills ?? {}).sort((a, b) => b.totalDamage - a.totalDamage);
@@ -21,12 +23,16 @@ export function ReportSummary({ report, detailed = false }: { report: CombatRepo
       </div>
       {detailed && (
         <div className="breakdown">
-          {skills.map((skill) => (
-            <div key={skill.skillId}>
-              <span>{skill.skillIcon} {skill.skillName} · {skill.casts} 次</span>
-              <strong>{formatNumber(skill.totalDamage)}</strong>
-            </div>
-          ))}
+          {skills.map((skill) => {
+            const definition = getSkill(skill.skillId);
+            return (
+              <div className={definition ? "item-hover-scope" : ""} tabIndex={definition ? 0 : undefined} key={skill.skillId}>
+                <span>{skill.skillIcon} {skill.skillName} · {skill.casts} 次</span>
+                <strong>{formatNumber(skill.totalDamage)}</strong>
+                {definition && <SkillTooltip skill={definition} casts={skill.casts} />}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

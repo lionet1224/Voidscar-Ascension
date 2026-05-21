@@ -8,10 +8,12 @@ import {
   getCurrentCharacter,
   getSpentSkillPoints,
   getTotalSkillPoints,
+  isCurrentSeasonCharacter,
 } from "../../systems/characterSystem";
 import { NoCharacter } from "../components/common";
 import { skillTypeLabels } from "../labels";
 import type { PageProps } from "../pageTypes";
+import { describeSkill, formatSkillTags, skillFormula } from "../skillText";
 
 export function SkillsPage({ save, mutate }: PageProps) {
   const character = getCurrentCharacter(save);
@@ -23,8 +25,10 @@ export function SkillsPage({ save, mutate }: PageProps) {
   const totalPoints = getTotalSkillPoints(character);
   const spentPoints = getSpentSkillPoints(character);
   const availablePoints = getAvailableSkillPoints(character);
+  const readonly = !isCurrentSeasonCharacter(character);
 
   const updateRule = (skillId: string, patch: Partial<SkillCastRule>) => {
+    if (readonly) return;
     mutate((draft) => ({
       ...draft,
       characters: draft.characters.map((entry) => {
@@ -42,6 +46,7 @@ export function SkillsPage({ save, mutate }: PageProps) {
   };
 
   const setRank = (skillId: string, delta: 1 | -1) => {
+    if (readonly) return;
     mutate((draft) => ({
       ...draft,
       characters: draft.characters.map((entry) => {
@@ -63,6 +68,7 @@ export function SkillsPage({ save, mutate }: PageProps) {
   };
 
   const toggleEquip = (skillId: string) => {
+    if (readonly) return;
     mutate((draft) => ({
       ...draft,
       characters: draft.characters.map((entry) => {
@@ -87,6 +93,7 @@ export function SkillsPage({ save, mutate }: PageProps) {
         <div>
           <h1>战诀</h1>
           <p>技能点 {spentPoints}/{totalPoints} · 可用 {availablePoints} · 最多装备 5 个主动战诀。</p>
+          {readonly && <p className="muted">旧纪道影为只读状态，战诀、加点和释放规则仅供回看。</p>}
         </div>
         <label className="toggle"><input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} /> 高级条件</label>
       </section>
@@ -104,25 +111,36 @@ export function SkillsPage({ save, mutate }: PageProps) {
               <div className="skill-node-head">
                 <div>
                   <h3>{skill.icon} {skill.name}</h3>
-                  <p>{skillTypeLabels[skill.type]} · {skill.tags.join(" / ")}</p>
+                  <p>{skillTypeLabels[skill.type]} · {formatSkillTags(skill.tags)}</p>
                 </div>
-                <strong>Lv.{rank}/{node.maxRank}</strong>
+                <strong>{rank}/{node.maxRank}</strong>
               </div>
-              <p>{resourceNames[character.classId]} {skill.resourceCost ? `消耗 ${skill.resourceCost}` : `获取 ${skill.resourceGain ?? 0}`} · 冷却 {(skill.cooldownMs / 1000).toFixed(1)}秒</p>
+              <p className="skill-description">{describeSkill(skill)}</p>
+              <p className="skill-formula">{skillFormula(skill, rank || 1)}</p>
+              <div className="skill-node-meta">
+                <span>{skillResourceText(skill, resourceNames[character.classId])}</span>
+                <span>冷却 {(skill.cooldownMs / 1000).toFixed(1)} 秒</span>
+                <span>解锁 {node.levelRequirement} 级</span>
+                <span>{node.branch}</span>
+                <span className={equipped ? "equipped" : ""}>{equipped ? "已装备 · 自动施展" : "未装备"}</span>
+              </div>
               <div className="node-actions">
-                <button disabled={locked || rank <= (node.prerequisites.length ? 0 : 1)} onClick={() => setRank(skill.id, -1)}>-</button>
-                <button disabled={locked || availablePoints <= 0 || rank >= node.maxRank} onClick={() => setRank(skill.id, 1)}>+</button>
-                <button disabled={rank <= 0} onClick={() => toggleEquip(skill.id)}>{equipped ? "卸下" : "装备"}</button>
+                <button disabled={readonly || locked || rank <= (node.prerequisites.length ? 0 : 1)} onClick={() => setRank(skill.id, -1)}>-</button>
+                <button disabled={readonly || locked || availablePoints <= 0 || rank >= node.maxRank} onClick={() => setRank(skill.id, 1)}>+</button>
+                <button disabled={readonly || rank <= 0} onClick={() => toggleEquip(skill.id)}>{equipped ? "卸下" : "装备"}</button>
               </div>
-              <div className="rule-strip">
-                <label><span>启用</span><input type="checkbox" checked={rule?.enabled ?? false} onChange={(event) => updateRule(skill.id, { enabled: event.target.checked })} /></label>
-                <label><span>优先级</span><input type="number" value={rule?.priority ?? 10} onChange={(event) => updateRule(skill.id, { priority: Number(event.target.value) })} /></label>
-              </div>
-              {advanced && (
+              {equipped && (
+                <div className="rule-strip single">
+                  <label><span>释放优先级</span><input disabled={readonly} type="number" value={rule?.priority ?? 10} onChange={(event) => updateRule(skill.id, { priority: Number(event.target.value) })} /></label>
+                </div>
+              )}
+              {!equipped && rank > 0 && <p className="muted">装备到战诀槽后，此战诀会自动进入战斗循环。</p>}
+              {advanced && equipped && (
                 <div className="rule-strip">
                   <label>
                     <span>触发</span>
                     <select
+                      disabled={readonly}
                       value={condition?.type ?? "always"}
                       onChange={(event) =>
                         updateRule(skill.id, {
@@ -143,6 +161,7 @@ export function SkillsPage({ save, mutate }: PageProps) {
                   <label>
                     <span>数值</span>
                     <input
+                      disabled={readonly}
                       type="number"
                       value={Number(condition?.value ?? 0)}
                       onChange={(event) =>
@@ -160,4 +179,8 @@ export function SkillsPage({ save, mutate }: PageProps) {
       </section>
     </div>
   );
+}
+
+function skillResourceText(skill: { resourceCost: number; resourceGain?: number }, resourceName: string) {
+  return skill.resourceCost ? `消耗 ${skill.resourceCost} ${resourceName}` : `${resourceName} +${skill.resourceGain ?? 0}`;
 }

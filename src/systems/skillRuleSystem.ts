@@ -12,6 +12,8 @@ export interface RuleContext {
   bossExists: boolean;
   targetHpPercent: number;
   summonCount: number;
+  summonCountForSkill: (skillId: string) => number;
+  summonLimit: (skill: Skill) => number;
   shieldPercent: number;
   progress: number;
   cooldownReady: (skillId: string) => boolean;
@@ -24,13 +26,14 @@ export function decideNextSkill(context: RuleContext): Skill | null {
   const profile = getActiveProfile(context.character);
   const equipped = new Set(context.character.skillLoadout.skillIds.slice(0, 5));
   const rules = profile.rules
-    .filter((rule) => rule.enabled && rule.mode === "auto" && equipped.has(rule.skillId) && (context.character.skillRanks[rule.skillId] ?? 0) > 0)
+    .filter((rule) => rule.mode === "auto" && equipped.has(rule.skillId) && (context.character.skillRanks[rule.skillId] ?? 0) > 0)
     .sort((a, b) => b.priority - a.priority);
   for (const rule of rules) {
     const skill = getSkill(rule.skillId);
     if (!skill || !context.canCast(skill)) continue;
-    if (rule.minIntervalMs && context.now - (context.lastCastAt[rule.skillId] ?? 0) < rule.minIntervalMs) continue;
-    if (matchAnyConditionGroup(rule, context)) return skill;
+    const lastCast = context.lastCastAt[rule.skillId];
+    if (rule.minIntervalMs && lastCast !== undefined && context.now - lastCast < rule.minIntervalMs) continue;
+    if (matchAnyConditionGroup(rule, context, skill)) return skill;
   }
   return getBasicSkill(context.character);
 }
@@ -39,12 +42,12 @@ export function getBasicSkill(character: Character) {
   return character.skillLoadout.skillIds.map((id) => getSkill(id)).find((skill) => skill?.type === "basic") ?? null;
 }
 
-function matchAnyConditionGroup(rule: SkillCastRule, context: RuleContext) {
+function matchAnyConditionGroup(rule: SkillCastRule, context: RuleContext, skill: Skill) {
   if (!rule.conditionGroups.length) return true;
-  return rule.conditionGroups.some((group) => group.conditions.every((condition) => matchCondition(condition, context)));
+  return rule.conditionGroups.some((group) => group.conditions.every((condition) => matchCondition(condition, context, skill)));
 }
 
-function matchCondition(condition: SkillCondition, context: RuleContext) {
+function matchCondition(condition: SkillCondition, context: RuleContext, skill: Skill) {
   switch (condition.type) {
     case "always":
       return true;
@@ -65,7 +68,7 @@ function matchCondition(condition: SkillCondition, context: RuleContext) {
     case "targetHpBelow":
       return compare(context.targetHpPercent, Number(condition.value ?? 35), condition.operator ?? "<=");
     case "summonCountBelow":
-      return compare(context.summonCount, Number(condition.value ?? 1), condition.operator ?? "<");
+      return compare(context.summonCountForSkill(skill.id), Math.max(Number(condition.value ?? 1), context.summonLimit(skill)), condition.operator ?? "<");
     case "shieldBelow":
       return compare(context.shieldPercent, Number(condition.value ?? 20), condition.operator ?? "<=");
     case "cooldownReady":

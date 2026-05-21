@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { CombatActor, CombatSession, SkillEffect } from "../../combat/combatTypes";
 import { formatNumber } from "../../systems/id";
 import { battleStateLabels } from "../labels";
+import { SkillTooltip } from "./InfoTooltip";
 
 export function BattleCanvas({
   getSession,
@@ -49,11 +50,13 @@ export function BattleCanvas({
 
 export function ActorStatusPanel({ actor }: { actor?: CombatActor }) {
   if (!actor) return null;
+  const visibleStatuses = actor.statusEffects.slice(0, 8);
+  const hiddenStatusCount = Math.max(0, actor.statusEffects.length - visibleStatuses.length);
   return (
     <div className="actor-status">
       <div className="actor-status-head">
         <strong>{actor.type === "player" ? "应劫者状态" : actor.name}</strong>
-        <span>Lv.{actor.level}</span>
+        <span>等级 {actor.level}</span>
       </div>
       <div className="mini-bars">
         <div><span>生命</span><b>{Math.max(0, Math.ceil(actor.hp))}/{Math.ceil(actor.maxHp)}</b></div>
@@ -62,13 +65,16 @@ export function ActorStatusPanel({ actor }: { actor?: CombatActor }) {
       </div>
       <div className="status-list">
         {actor.statusEffects.length ? (
-          actor.statusEffects.map((status) => (
-            <div className="status-chip" key={`${status.id}-${status.sourceSkillId ?? status.sourceName}`} style={{ borderLeftColor: statusColor(status.type) }}>
-              <strong>{status.name}{status.stacks > 1 ? ` x${status.stacks}` : ""}</strong>
-              <span>{status.description}</span>
-              <small>来源：{status.sourceName} · 剩余 {Math.ceil(status.remainingMs / 1000)}秒</small>
-            </div>
-          ))
+          <>
+            {visibleStatuses.map((status) => (
+              <div className="status-chip" key={`${status.id}-${status.sourceSkillId ?? status.sourceName}`} style={{ borderLeftColor: statusColor(status.type) }}>
+                <strong>{status.name}{status.stacks > 1 ? ` x${status.stacks}` : ""}</strong>
+                <span>{status.description}</span>
+                <small>来源：{status.sourceName} · 剩余 {Math.ceil(status.remainingMs / 1000)}秒</small>
+              </div>
+            ))}
+            {hiddenStatusCount > 0 && <p className="muted">另有 {hiddenStatusCount} 个状态正在生效。</p>}
+          </>
         ) : (
           <p className="muted">没有增益或异常状态。点击画布上的劫煞可查看它身上的状态。</p>
         )}
@@ -82,9 +88,10 @@ export function SkillBreakdown({ session }: { session: CombatSession }) {
   return (
     <div className="breakdown">
       {entries.map((entry) => (
-        <div key={entry.skill.id}>
+        <div className="item-hover-scope" tabIndex={0} key={entry.skill.id}>
           <span>{entry.skill.icon} {entry.skill.name}</span>
           <strong>{formatNumber(entry.totalDamage)}</strong>
+          <SkillTooltip skill={entry.skill} rank={session.character.skillRanks[entry.skill.id] ?? 1} casts={entry.casts} />
         </div>
       ))}
     </div>
@@ -132,7 +139,7 @@ function drawCombat(canvas: HTMLCanvasElement | null, session: CombatSession) {
     ctx.fillStyle = "#0f172a";
     ctx.font = "10px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`${actor.name} Lv.${actor.level}`, actor.position.x, actor.position.y - actor.radius - 20);
+    ctx.fillText(`${actor.name} ${actor.level}级`, actor.position.x, actor.position.y - actor.radius - 20);
     drawStatusPips(ctx, actor);
   });
   session.summons.forEach((actor) => {

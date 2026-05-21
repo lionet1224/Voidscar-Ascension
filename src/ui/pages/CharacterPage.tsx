@@ -2,11 +2,11 @@ import { useState, type ReactNode } from "react";
 import { Archive, Download, Trash2, Upload } from "lucide-react";
 import { classNames } from "../../data/classes";
 import type { ClassId } from "../../types";
-import { createCharacter } from "../../systems/characterSystem";
+import { createCharacter, ensureCharacterRuntimeFields, isCurrentSeasonCharacter } from "../../systems/characterSystem";
 import { exportCharacterArchive, importCharacterArchive } from "../../systems/characterArchiveSystem";
 import type { PageProps } from "../pageTypes";
 
-export function CharacterPage({ save, mutate, setPage }: PageProps) {
+export function CharacterPage({ save, mutate, setPage, clearRuntimeState }: PageProps) {
   const [name, setName] = useState("");
   const [classId, setClassId] = useState<ClassId>("warrior");
   const [archiveText, setArchiveText] = useState("");
@@ -17,6 +17,7 @@ export function CharacterPage({ save, mutate, setPage }: PageProps) {
   const create = () => {
     if (!canCreate) return;
     const character = createCharacter(name, classId);
+    clearRuntimeState();
     mutate((draft) => ({
       ...draft,
       currentCharacterId: character.id,
@@ -41,12 +42,13 @@ export function CharacterPage({ save, mutate, setPage }: PageProps) {
     }
     try {
       const imported = await importCharacterArchive(archiveText);
+      const character = ensureCharacterRuntimeFields(imported.character);
       mutate((draft) => ({
         ...draft,
-        characters: [...draft.characters, imported.character],
-        combatReports: [...imported.reports, ...draft.combatReports],
+        characters: [...draft.characters, character],
+        combatReports: [...imported.reports.map((report) => ({ ...report, characterId: character.id })), ...draft.combatReports],
       }));
-      setArchiveStatus(`已导入 ${imported.character.name}。`);
+      setArchiveStatus(`已导入 ${character.name}。`);
       setImportOpen(false);
       setArchiveText("");
     } catch (error) {
@@ -57,6 +59,7 @@ export function CharacterPage({ save, mutate, setPage }: PageProps) {
     const character = save.characters.find((entry) => entry.id === characterId);
     if (!character) return;
     if (!window.confirm(`删除「${character.name}」？该操作会同时删除该角色的道痕记录。`)) return;
+    if (save.currentCharacterId === characterId) clearRuntimeState();
     mutate((draft) => ({
       ...draft,
       currentCharacterId: draft.currentCharacterId === characterId ? undefined : draft.currentCharacterId,
@@ -96,28 +99,30 @@ export function CharacterPage({ save, mutate, setPage }: PageProps) {
           <article className="item-card" key={character.id}>
             <div>
               <h3>{character.name}</h3>
-              <p>{classNames[character.classId]} · 等级 {character.level} · {character.status === "active" ? "当纪可用" : "旧纪道影"}</p>
+              <p>{classNames[character.classId]} · 等级 {character.level} · {isCurrentSeasonCharacter(character) ? "当纪可用" : "旧纪道影（只读）"}</p>
             </div>
             <div className="card-actions">
               <button onClick={() => {
+                if (save.currentCharacterId !== character.id) clearRuntimeState();
                 mutate((draft) => ({ ...draft, currentCharacterId: character.id }));
                 setPage("home");
-              }}>进入命盘</button>
+              }}>{isCurrentSeasonCharacter(character) ? "进入命盘" : "查看道影"}</button>
               <button
-                disabled={character.status === "archived"}
-                onClick={() =>
+                disabled={!isCurrentSeasonCharacter(character)}
+                onClick={() => {
+                  if (save.currentCharacterId === character.id) clearRuntimeState();
                   mutate((draft) => ({
                     ...draft,
                     characters: draft.characters.map((entry) =>
                       entry.id === character.id ? { ...entry, status: "archived", archivedAt: Date.now() } : entry,
                     ),
-                  }))
-                }
+                  }));
+                }}
               >
                 <Archive size={15} /> 归档
               </button>
               <button onClick={() => exportOne(character.id)}><Download size={15} /> 导出</button>
-              <button onClick={() => removeOne(character.id)}><Trash2 size={15} /> 删除</button>
+              <button disabled={!isCurrentSeasonCharacter(character)} onClick={() => removeOne(character.id)}><Trash2 size={15} /> 删除</button>
             </div>
           </article>
         ))}

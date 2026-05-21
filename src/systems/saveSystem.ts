@@ -1,5 +1,6 @@
 import type { GameSave } from "../types";
 import { createDefaultLootFilter, createDefaultSave, createDefaultMaterials, ensureCharacterRuntimeFields } from "./characterSystem";
+import { CURRENT_SEASON_ID, createSeasonState } from "../data/seasons";
 
 const DB_NAME = "voidscar-ascension";
 const STORE = "saves";
@@ -59,11 +60,17 @@ export function importSave(raw: string) {
 }
 
 function normalizeSave(save: GameSave): GameSave {
+  const characters = (save.characters ?? []).map(ensureCharacterRuntimeFields);
+  const currentCharacter = characters.find((character) => character.id === save.currentCharacterId);
+  const idleCharacter = characters.find((character) => character.id === save.idleFarmConfig?.characterId);
+  const seasons = normalizeSeasons(save);
   return {
     ...createDefaultSave(),
     ...save,
     settings: { ...createDefaultSave().settings, ...save.settings },
-    characters: (save.characters ?? []).map(ensureCharacterRuntimeFields),
+    seasons,
+    characters,
+    currentCharacterId: currentCharacter ? currentCharacter.id : undefined,
     inventory: save.inventory ?? [],
     materials: { ...createDefaultMaterials(), ...(save.materials ?? {}) },
     unlocked: {
@@ -72,5 +79,16 @@ function normalizeSave(save: GameSave): GameSave {
     },
     combatReports: save.combatReports ?? [],
     lootFilters: save.lootFilters?.length ? save.lootFilters : [createDefaultLootFilter()],
+    idleFarmConfig: idleCharacter?.status === "active" && idleCharacter.seasonId === CURRENT_SEASON_ID ? save.idleFarmConfig : undefined,
   };
+}
+
+function normalizeSeasons(save: GameSave) {
+  const current = createSeasonState();
+  const existing = save.seasons ?? [];
+  const hasCurrent = existing.some((season) => season.id === CURRENT_SEASON_ID);
+  return [
+    ...(hasCurrent ? [] : [current]),
+    ...existing.map((season) => (season.id === CURRENT_SEASON_ID ? { ...current, ...season, status: "active" as const } : { ...season, status: "ended" as const })),
+  ];
 }

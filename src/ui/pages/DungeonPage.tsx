@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { dungeons, familyTrashNames, getDungeon } from "../../data/dungeons";
+import { allDungeons, familyTrashNames, getDungeon } from "../../data/dungeons";
 import { getCurrentCharacter } from "../../systems/characterSystem";
 import { DungeonLootModal } from "../components/DungeonLootModal";
 import { familyLabels } from "../labels";
@@ -13,13 +13,14 @@ export function DungeonPage({ save, setPage }: PageProps) {
   return (
     <>
       <section className="dungeon-grid">
-        {dungeons.map((dungeon) => (
+        {allDungeons.map((dungeon) => (
           <article className="dungeon-card" key={dungeon.id}>
             <div className="dungeon-card-head">
               <div>
                 <span className="eyebrow">{familyLabels[dungeon.family]}</span>
                 <h3>{dungeon.name}</h3>
                 <p>推荐等级 {dungeon.recommendedLevel[0]}-{dungeon.recommendedLevel[1]} · 劫主：{dungeon.bossName}</p>
+                {dungeon.rewardTags && <p className="muted">{dungeon.rewardTags.join(" / ")}</p>}
               </div>
               <span className={completed.has(dungeon.id) ? "badge ok" : "badge"}>{completed.has(dungeon.id) ? "已通关" : "未通关"}</span>
             </div>

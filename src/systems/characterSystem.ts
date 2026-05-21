@@ -1,5 +1,5 @@
 import { classBaseStats, defaultMovement, defaultTargeting } from "../data/classes";
-import { equipmentSlots } from "../data/affixes";
+import { equipmentSlots, rarityRank } from "../data/affixes";
 import { CURRENT_SEASON_ID, CURRENT_VERSION, createSeasonState, currentSeasonDefinition } from "../data/seasons";
 import { defaultRulesFor, getClassSkills, getDefaultSkillIds } from "../data/skills";
 import type { Character, CharacterStats, ClassId, EquipmentSlot, GameSave, Item, LootFilter } from "../types";
@@ -22,11 +22,14 @@ export function createDefaultSave(): GameSave {
     characters: [],
     inventory: [],
     materials: {
-      scrapIron: 0,
-      magicDust: 0,
-      riftShard: 0,
-      legendaryEmber: 0,
-      ashCore: 0,
+      spirit_stone: 0,
+      black_iron: 0,
+      spirit_jade: 0,
+      star_sand: 0,
+      artifact_core: 0,
+      voidscar_shard: 0,
+      fireseed: 0,
+      dao_seal_dust: 0,
     },
     unlocked: {
       completedDungeons: [],
@@ -55,11 +58,15 @@ export function createDefaultLootFilter(): LootFilter {
 export function createDefaultMaterials() {
   return {
     gold: 0,
-    scrapIron: 0,
-    magicDust: 0,
-    riftShard: 0,
-    legendaryEmber: 0,
-    ashCore: 0,
+    spirit_stone: 0,
+    ember_remnant: 0,
+    black_iron: 0,
+    spirit_jade: 0,
+    star_sand: 0,
+    artifact_core: 0,
+    voidscar_shard: 0,
+    fireseed: 0,
+    dao_seal_dust: 0,
   };
 }
 
@@ -120,6 +127,14 @@ export function getCurrentCharacter(save: GameSave) {
   return save.characters.find((character) => character.id === save.currentCharacterId);
 }
 
+export function isCurrentSeasonCharacter(character: Character) {
+  return character.status === "active" && character.seasonId === CURRENT_SEASON_ID;
+}
+
+export function isArchivedCharacter(character: Character) {
+  return character.status === "archived" || character.seasonId !== CURRENT_SEASON_ID;
+}
+
 export function getActiveProfile(character: Character) {
   return character.skillProfiles.find((profile) => profile.id === character.skillLoadout.activeProfileId) ?? character.skillProfiles[0];
 }
@@ -133,7 +148,25 @@ export function mergeStats(base: CharacterStats, items: Item[]) {
   };
   items.forEach((item) => {
     const bonus = 1 + upgradeBonus(item.upgradeLevel);
+    const rank = rarityRank[item.rarity];
     apply(item.implicitStats, bonus);
+    const endgameFactor = item.power * (0.18 + item.upgradeLevel * 0.035 + rank * 0.035);
+    if (item.slot === "weapon") {
+      stats.attackPower += endgameFactor * 1.85;
+      stats.damageBonus += rank >= 4 ? 0.05 : rank >= 3 ? 0.025 : 0;
+    } else if (item.slot === "offhand") {
+      stats.attackPower += endgameFactor * 0.35;
+      stats.resourceRegen += item.power / 85 + item.upgradeLevel * 0.35;
+      stats.cooldownReduction += rank >= 4 ? 0.035 : 0.015;
+    } else if (item.slot === "amulet" || item.slot === "ring1" || item.slot === "ring2") {
+      stats.attackPower += endgameFactor * 0.22;
+      stats.damageBonus += 0.025 + rank * 0.012;
+      stats.resourceRegen += rank >= 4 ? 1.2 : 0.5;
+    } else {
+      stats.maxHp += endgameFactor * 7.5;
+      stats.armor += endgameFactor * 0.95;
+      stats.damageBonus += rank >= 4 ? 0.018 : 0.008;
+    }
     item.prefixes.forEach((affix) => apply(affix.statModifiers));
     item.suffixes.forEach((affix) => apply(affix.statModifiers));
     if (item.legendaryPower) apply(item.legendaryPower.statModifiers);
@@ -153,18 +186,26 @@ export function getEffectiveStats(character: Character, inventory: Item[]) {
 
 export function calculateCharacterPower(character: Character, inventory: Item[]) {
   const stats = getEffectiveStats(character, inventory);
-  const itemPower = getEquippedItems(character, inventory).reduce((sum, item) => sum + item.power + item.upgradeLevel * 12, 0);
+  const equipped = getEquippedItems(character, inventory);
+  const itemPower = equipped.reduce((sum, item) => sum + item.power * (1 + item.upgradeLevel * 0.08 + rarityRank[item.rarity] * 0.12), 0);
+  const specialCount = equipped.filter((item) => item.legendaryPower || item.seasonalPower).length;
   const skillCount = Object.values(character.skillRanks).reduce((sum, rank) => sum + rank, 0);
   return Math.floor(
-    stats.maxHp * 0.7 +
-      stats.attackPower * 12 +
-      stats.armor * 2.2 +
-      stats.resourceRegen * 6 +
-      stats.critChance * 140 +
-      stats.damageBonus * 220 +
-      itemPower * 0.9 +
-      character.level * 18 +
-      skillCount * 4,
+    stats.maxHp * 1.1 +
+      stats.attackPower * 52 +
+      stats.armor * 8.5 +
+      stats.resourceRegen * 95 +
+      stats.critChance * 1800 +
+      stats.critDamage * 450 +
+      stats.damageBonus * 12000 +
+      stats.rangedDamageBonus * 9000 +
+      stats.aoeDamageBonus * 7000 +
+      stats.dotDamageBonus * 7000 +
+      stats.summonDamageBonus * 8000 +
+      itemPower * 7.2 +
+      specialCount * 4200 +
+      character.level * 260 +
+      skillCount * 95,
   );
 }
 
@@ -179,13 +220,19 @@ export function getCharacterReports(save: GameSave, character: Character) {
 }
 
 export function ensureCharacterRuntimeFields(character: Character): Character {
+  const seasonId = character.seasonId ?? CURRENT_SEASON_ID;
+  const archivedBySeason = seasonId !== CURRENT_SEASON_ID;
+  const status = archivedBySeason ? "archived" : character.status ?? "active";
   return {
     ...character,
+    seasonId,
+    status,
     inventory: character.inventory ?? [],
     materials: { ...createDefaultMaterials(), ...(character.materials ?? {}) },
     completedDungeons: character.completedDungeons ?? [],
     seasonEmbers: character.seasonEmbers ?? 0,
-    seasonPowers: character.seasonPowers ?? currentSeasonDefinition.powers.map((power) => ({ ...power })),
+    seasonPowers: character.seasonPowers ?? (archivedBySeason ? [] : currentSeasonDefinition.powers.map((power) => ({ ...power }))),
+    archivedAt: status === "archived" ? character.archivedAt ?? Date.now() : character.archivedAt,
   };
 }
 
@@ -202,7 +249,7 @@ export function getAvailableSkillPoints(character: Character) {
 }
 
 export function expToNext(level: number) {
-  return Math.floor(80 * Math.pow(1.18, level - 1));
+  return Math.floor(120 * Math.pow(level, 2.15));
 }
 
 export function addExp(character: Character, exp: number) {

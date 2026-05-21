@@ -1,4 +1,5 @@
 export { HomePage } from "./HomePage";
+export { StartScreen } from "./StartScreen";
 export { CharacterPage } from "./CharacterPage";
 export { BattlePage } from "./BattlePage";
 export { SkillsPage } from "./SkillsPage";

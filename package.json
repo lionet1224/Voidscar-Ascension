@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc && vite build",
+    "check:copy": "node scripts/check-player-facing-copy.mjs",
+    "build": "pnpm run check:copy && tsc && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

@@ -9,9 +9,11 @@ import {
   getCharacterReports,
   getCurrentCharacter,
   getEffectiveStats,
+  isCurrentSeasonCharacter,
 } from "../../systems/characterSystem";
 import { formatDuration, formatNumber } from "../../systems/id";
 import { NoCharacter, Stat } from "../components/common";
+import { AttributeTooltip, SkillTooltip } from "../components/InfoTooltip";
 import { ReportSummary } from "../components/ReportSummary";
 import type { PageProps } from "../pageTypes";
 
@@ -32,17 +34,19 @@ export function HomePage({ save, setPage }: PageProps) {
   const latest = reports[0];
   const power = calculateCharacterPower(character, inventory);
   const stable = Math.max(0, character.highestRiftTier - 2);
+  const playable = isCurrentSeasonCharacter(character);
   return (
     <div className="page-grid">
       <section className="panel hero-panel">
         <div>
           <span className="eyebrow">当前应劫者</span>
           <h1>{character.name}</h1>
-          <p>{classNames[character.classId]} · 等级 {character.level} · 战力 {formatNumber(power)}</p>
+          <p>{classNames[character.classId]} · 等级 {character.level} · 战力 {formatNumber(power)} · {playable ? "当纪应劫者" : "旧纪道影"}</p>
+          {!playable && <p className="muted">该角色来自旧赛季，已归档为只读道影。你可以回看装备、战诀、最高层和道痕记录，但不能修改或继续游玩。</p>}
         </div>
         <div className="hero-actions">
-          <button className="primary" onClick={() => setPage("battle")}><CirclePlay size={17} /> 开始推演</button>
-          <button onClick={() => setPage("skills")}><Zap size={17} /> 编排战诀</button>
+          <button className="primary" disabled={!playable} onClick={() => setPage("battle")}><CirclePlay size={17} /> 开始推演</button>
+          <button onClick={() => setPage("skills")}><Zap size={17} /> {playable ? "编排战诀" : "查看战诀"}</button>
         </div>
       </section>
       <section className="panel stat-grid">
@@ -88,7 +92,7 @@ function CharacterSheet({ character, inventory, reports }: { character: Characte
         <div>
           <span className="eyebrow">应劫者档案</span>
           <h2>{character.name}</h2>
-          <p>{classNames[character.classId]} · Lv.{character.level} · {character.status === "active" ? "当纪应劫者" : "旧纪道影"}</p>
+          <p>{classNames[character.classId]} · 等级 {character.level} · {character.status === "active" ? "当纪应劫者" : "旧纪道影"}</p>
         </div>
         <div className="sheet-summary">
           <Stat title="累计击杀" value={formatNumber(totalKills)} />
@@ -102,7 +106,11 @@ function CharacterSheet({ character, inventory, reports }: { character: Characte
           <h3>基础属性</h3>
           <div className="attribute-grid">
             {characterAttributeRows(stats).map((row) => (
-              <div key={row.label}><span>{row.label}</span><strong>{row.value}</strong></div>
+              <div className="attribute-row item-hover-scope" tabIndex={0} key={row.label}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+                <AttributeTooltip label={row.label} value={row.value} />
+              </div>
             ))}
           </div>
         </div>
@@ -121,11 +129,21 @@ function CharacterSheet({ character, inventory, reports }: { character: Characte
         <div>
           <h3>已装备战诀</h3>
           <div className="skill-chip-list">
-            {equippedSkills.map((skill) => skill && <span key={skill.id}>{skill.icon} {skill.name} Lv.{character.skillRanks[skill.id] ?? 0}</span>)}
+            {equippedSkills.map((skill) => skill && (
+              <span className="item-hover-scope" tabIndex={0} key={skill.id}>
+                {skill.icon} {skill.name} {character.skillRanks[skill.id] ?? 0} 重
+                <SkillTooltip skill={skill} rank={character.skillRanks[skill.id] ?? 0} />
+              </span>
+            ))}
           </div>
           <h3>已修技能</h3>
           <div className="skill-chip-list">
-            {learnedSkills.map(({ skill, rank }) => skill && <span key={skill.id}>{skill.icon} {skill.name} Lv.{rank}</span>)}
+            {learnedSkills.map(({ skill, rank }) => skill && (
+              <span className="item-hover-scope" tabIndex={0} key={skill.id}>
+                {skill.icon} {skill.name} {rank} 重
+                <SkillTooltip skill={skill} rank={rank} />
+              </span>
+            ))}
           </div>
         </div>
       </div>

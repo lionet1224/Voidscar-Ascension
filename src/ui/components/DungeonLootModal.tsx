@@ -30,7 +30,7 @@ export function DungeonLootModal({ dungeonId, onClose }: { dungeonId: string; on
                 {group.items.map((item) => (
                   <article className="loot-preview-item item-hover-scope" key={item.id} style={{ borderLeftColor: rarityColor(item.rarity) }}>
                     <strong>{item.name}</strong>
-                    <span>{slotLabels[item.slot]} · Lv.{item.itemLevelRange}</span>
+                    <span>{slotLabels[item.slot]} · 装等 {item.itemLevelRange}</span>
                     <ItemTooltip databaseItem={item} />
                   </article>
                 ))}

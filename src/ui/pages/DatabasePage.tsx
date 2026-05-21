@@ -7,7 +7,8 @@ import { currentSeasonDefinition } from "../../data/seasons";
 import { getClassSkills } from "../../data/skills";
 import { rarityColor } from "../../systems/lootSystem";
 import { ItemTooltip } from "../components/ItemTooltip";
-import { familyLabels, skillTypeLabels } from "../labels";
+import { familyLabels, monsterTypeLabels, skillTypeLabels } from "../labels";
+import { describeSkill, formatSkillTags, skillFormula } from "../skillText";
 
 export function DatabasePage() {
   const [tab, setTab] = useState<"skills" | "items" | "monsters" | "seasons">("skills");
@@ -15,8 +16,8 @@ export function DatabasePage() {
     <div className="page-stack">
       <section className="panel page-title-row">
         <div>
-          <h1>开发数据库</h1>
-          <p>仅本地开发模式显示，用来检查配置数据是否完整。</p>
+          <h1>万象图鉴</h1>
+          <p>收录战诀、法器、劫煞与道纪见闻，便于应劫者查阅修行线索。</p>
         </div>
         <div className="segmented">
           <button className={tab === "skills" ? "active" : ""} onClick={() => setTab("skills")}>战诀</button>
@@ -31,7 +32,9 @@ export function DatabasePage() {
             <article className="database-card" key={skill.id}>
               <h3>{skill.icon} {skill.name}</h3>
               <p>{classNames[skill.classId]} · {skillTypeLabels[skill.type]} · 冷却 {(skill.cooldownMs / 1000).toFixed(1)}秒</p>
-              <span>{skill.tags.join(" / ")}</span>
+              <span>{formatSkillTags(skill.tags)}</span>
+              <small>{describeSkill(skill)}</small>
+              <small>{skillFormula(skill)}</small>
             </article>
           ))}
         </section>
@@ -41,7 +44,7 @@ export function DatabasePage() {
           {itemDatabase.map((item) => (
             <article className="database-card item-hover-scope" key={item.id} style={{ borderLeftColor: rarityColor(item.rarity) }}>
               <h3>{item.name}</h3>
-              <p>{slotLabels[item.slot]} · Lv.{item.itemLevelRange} · {rarityLabels[item.rarity]}</p>
+              <p>{slotLabels[item.slot]} · 装等 {item.itemLevelRange} · {rarityLabels[item.rarity]}</p>
               <span>{item.sourceName} · {item.sourceType}</span>
               <small>{item.mechanism}</small>
               <ItemTooltip databaseItem={item} />
@@ -54,7 +57,7 @@ export function DatabasePage() {
           {monsterTemplates.map((monster) => (
             <article className="database-card" key={monster.id}>
               <h3>{monster.name}</h3>
-              <p>{familyLabels[monster.family]} · {monster.type} · 进度 {monster.progressValue}</p>
+              <p>{familyLabels[monster.family]} · {monsterTypeLabels[monster.type]} · 进度 {monster.progressValue}</p>
               <span>生命 {monster.baseHp} / 伤害 {monster.baseDamage} / 护甲 {monster.baseArmor}</span>
               <small>{monster.tags.join(" / ")}</small>
             </article>

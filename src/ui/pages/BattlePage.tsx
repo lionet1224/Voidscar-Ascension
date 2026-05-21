@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { CirclePlay } from "lucide-react";
-import { dungeons } from "../../data/dungeons";
+import { allDungeons } from "../../data/dungeons";
+import { rarityLabels } from "../../data/affixes";
 import { createCombatSession } from "../../combat/combatEngine";
 import type { CombatSession } from "../../combat/combatTypes";
-import { getCharacterInventory, getCurrentCharacter } from "../../systems/characterSystem";
+import { getCharacterInventory, getCurrentCharacter, isCurrentSeasonCharacter } from "../../systems/characterSystem";
 import { formatNumber } from "../../systems/id";
+import { rarityColor } from "../../systems/lootSystem";
+import { ItemTooltip } from "../components/ItemTooltip";
 import { BattleCanvas, ActorStatusPanel, SkillBreakdown, getSelectedActor } from "../components/BattleWidgets";
 import { NoCharacter, Stat } from "../components/common";
 import { battleStateLabels } from "../labels";
@@ -13,7 +16,7 @@ import type { PageProps } from "../pageTypes";
 export function BattlePage({ save, getBattleSession, setBattleSession, selectedActorId, setSelectedActorId }: PageProps) {
   const character = getCurrentCharacter(save);
   const [mode, setMode] = useState<"normal" | "rift">("normal");
-  const [dungeonId, setDungeonId] = useState(dungeons[0].id);
+  const [dungeonId, setDungeonId] = useState(allDungeons[0].id);
   const [riftTier, setRiftTier] = useState(Math.max(1, (character?.highestRiftTier ?? 0) + 1));
   const [session, setSessionView] = useState<CombatSession | undefined>(() => getBattleSession());
 
@@ -24,9 +27,9 @@ export function BattlePage({ save, getBattleSession, setBattleSession, selectedA
   }, [getBattleSession]);
 
   if (!character) return <NoCharacter />;
-  const archived = character.status === "archived";
+  const playable = isCurrentSeasonCharacter(character);
   const start = () => {
-    if (archived) return;
+    if (!playable) return;
     setSelectedActorId("player");
     const next = createCombatSession({ character, inventory: getCharacterInventory(save, character), dungeonId, riftTier: mode === "rift" ? riftTier : undefined });
     setBattleSession(next);
@@ -42,13 +45,14 @@ export function BattlePage({ save, getBattleSession, setBattleSession, selectedA
           </div>
           {mode === "normal" ? (
             <select value={dungeonId} onChange={(event) => setDungeonId(event.target.value)}>
-              {dungeons.map((dungeon) => <option key={dungeon.id} value={dungeon.id}>{dungeon.name}</option>)}
+              {allDungeons.map((dungeon) => <option key={dungeon.id} value={dungeon.id}>{dungeon.kind === "material" ? "材料 · " : ""}{dungeon.name}</option>)}
             </select>
           ) : (
             <input type="number" min={1} max={character.highestRiftTier + 1} value={riftTier} onChange={(event) => setRiftTier(Number(event.target.value))} />
           )}
-          <button className="primary" disabled={archived} onClick={start}><CirclePlay size={17} /> 开始</button>
+          <button className="primary" disabled={!playable} onClick={start}><CirclePlay size={17} /> 开始</button>
         </div>
+        {!playable && <p className="muted">旧纪道影不能进入秘境、天阶或神游，只能回看历史信息。</p>}
         <BattleCanvas getSession={getBattleSession} onSelectActor={setSelectedActorId} />
       </section>
       <section className="panel live-stats">
@@ -59,6 +63,23 @@ export function BattlePage({ save, getBattleSession, setBattleSession, selectedA
             <Stat title="进度" value={`${Math.floor(session.progress)}%`} />
             <Stat title="击杀" value={`${session.kills}`} />
             <Stat title="总伤害" value={formatNumber(session.stats.totalDamage)} />
+            <section className="live-drop-list">
+              <div className="live-drop-head">
+                <strong>本次掉落</strong>
+                <span>{session.droppedItems.length} 件</span>
+              </div>
+              {session.droppedItems.length ? (
+                session.droppedItems.slice(-6).reverse().map((item) => (
+                  <article className="live-drop-item item-hover-scope" key={item.id} style={{ borderLeftColor: rarityColor(item.rarity) }}>
+                    <span>{item.name}</span>
+                    <small>{rarityLabels[item.rarity]} · 装等 {item.itemLevel}</small>
+                    <ItemTooltip item={item} />
+                  </article>
+                ))
+              ) : (
+                <p className="muted">击败劫煞时会即时掷出法器，结算时统一收入背包或自动分解。</p>
+              )}
+            </section>
             <ActorStatusPanel actor={getSelectedActor(session, selectedActorId)} />
             <SkillBreakdown session={session} />
           </>

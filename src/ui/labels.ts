@@ -28,15 +28,30 @@ export const seasonCategoryLabels = {
 };
 
 export const patchCategoryLabels: Record<PatchNote["changes"][number]["category"], string> = {
-  new: "新增",
-  balance: "平衡",
-  fix: "修复",
-  system: "系统",
+  new: "本期开放",
+  balance: "赛季机制",
+  fix: "修复说明",
+  system: "命盘记录",
 };
 
 export const familyLabels = {
-  paper: "妖兽",
-  rust: "器傀",
-  darkScreen: "阴魂",
-  electric: "劫煞",
+  beast: "妖兽",
+  ghost: "阴魂",
+  demonic: "魔修",
+  construct: "器傀",
+  fiend: "劫煞",
+};
+
+export const monsterTypeLabels = {
+  trash: "近战小怪",
+  elite: "精英",
+  boss: "劫主",
+  ranged: "远程",
+  charger: "突进",
+  healer: "回生",
+  shieldBearer: "护盾",
+  summoner: "召唤",
+  bomber: "自爆",
+  control: "控制",
+  eliteCandidate: "精英候选",
 };

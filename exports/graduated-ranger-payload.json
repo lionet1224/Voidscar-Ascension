@@ -1,0 +1,1409 @@
+{
+  "version": "0.2.0",
+  "exportedAt": 1779357545076,
+  "character": {
+    "id": "char_grad_ranger_mq3arkt_mpfbjgqc",
+    "name": "赤霄穿云 · 毕业灵弓",
+    "classId": "ranger",
+    "seasonId": "dao_era_1_ember_tribulation",
+    "status": "active",
+    "level": 60,
+    "exp": 0,
+    "stats": {
+      "maxHp": 110,
+      "hpRegen": 1,
+      "attackPower": 14,
+      "armor": 10,
+      "fireResist": 0,
+      "iceResist": 0,
+      "lightningResist": 0,
+      "poisonResist": 0,
+      "shadowResist": 0,
+      "critChance": 0.08,
+      "critDamage": 1.5,
+      "attackSpeed": 1,
+      "castSpeed": 1,
+      "moveSpeed": 1,
+      "cooldownReduction": 0,
+      "resourceMax": 100,
+      "resourceRegen": 7,
+      "damageBonus": 0,
+      "eliteDamageBonus": 0,
+      "bossDamageBonus": 0,
+      "meleeDamageBonus": 0,
+      "rangedDamageBonus": 0,
+      "aoeDamageBonus": 0,
+      "dotDamageBonus": 0,
+      "summonDamageBonus": 0,
+      "healingBonus": 0,
+      "shieldBonus": 0
+    },
+    "equipment": {
+      "weapon": "item_weapon_vzowj3z_mpfbjgqc",
+      "offhand": "item_offhand_fkb6gfi_mpfbjgqc",
+      "helmet": "item_helmet_j2xqx9l_mpfbjgqc",
+      "chest": "item_chest_cs4qj0b_mpfbjgqc",
+      "gloves": "item_gloves_b305cms_mpfbjgqc",
+      "pants": "item_pants_25cnosa_mpfbjgqc",
+      "boots": "item_boots_yf0xv04_mpfbjgqc",
+      "amulet": "item_amulet_9w03izl_mpfbjgqc",
+      "ring1": "item_ring1_j7gk67g_mpfbjgqc",
+      "ring2": "item_ring2_pf7hvq2_mpfbjgqc"
+    },
+    "skillLoadout": {
+      "skillIds": [
+        "ranger_quickshot",
+        "ranger_piercing_arrow",
+        "ranger_poison_trap",
+        "ranger_arrow_rain",
+        "ranger_wolf"
+      ],
+      "activeProfileId": "graduate_ranger"
+    },
+    "skillRanks": {
+      "ranger_quickshot": 5,
+      "ranger_piercing_arrow": 5,
+      "ranger_poison_trap": 5,
+      "ranger_shadow_step": 3,
+      "ranger_arrow_rain": 5,
+      "ranger_burst_knife": 5,
+      "ranger_wolf": 3
+    },
+    "skillProfiles": [
+      {
+        "id": "graduate_ranger",
+        "name": "穿云火狼终局循环",
+        "rules": [
+          {
+            "skillId": "ranger_wolf",
+            "enabled": true,
+            "priority": 94,
+            "mode": "auto",
+            "conditionGroups": [
+              {
+                "logic": "AND",
+                "conditions": [
+                  {
+                    "type": "summonCountBelow",
+                    "operator": "<",
+                    "value": 1
+                  }
+                ]
+              }
+            ],
+            "minIntervalMs": 18000,
+            "reserveForBoss": true
+          },
+          {
+            "skillId": "ranger_arrow_rain",
+            "enabled": true,
+            "priority": 88,
+            "mode": "auto",
+            "conditionGroups": [
+              {
+                "logic": "AND",
+                "conditions": [
+                  {
+                    "type": "enemyCountNearby",
+                    "operator": ">=",
+                    "value": 2,
+                    "radius": 300
+                  },
+                  {
+                    "type": "resourceAbove",
+                    "operator": ">=",
+                    "value": 35
+                  }
+                ]
+              }
+            ],
+            "minIntervalMs": 12000
+          },
+          {
+            "skillId": "ranger_piercing_arrow",
+            "enabled": true,
+            "priority": 80,
+            "mode": "auto",
+            "conditionGroups": [
+              {
+                "logic": "AND",
+                "conditions": [
+                  {
+                    "type": "enemyCountNearby",
+                    "operator": ">=",
+                    "value": 1,
+                    "radius": 330
+                  },
+                  {
+                    "type": "resourceAbove",
+                    "operator": ">=",
+                    "value": 18
+                  }
+                ]
+              }
+            ],
+            "minIntervalMs": 2000
+          },
+          {
+            "skillId": "ranger_poison_trap",
+            "enabled": true,
+            "priority": 74,
+            "mode": "auto",
+            "conditionGroups": [
+              {
+                "logic": "AND",
+                "conditions": [
+                  {
+                    "type": "enemyCountNearby",
+                    "operator": ">=",
+                    "value": 2,
+                    "radius": 160
+                  },
+                  {
+                    "type": "resourceAbove",
+                    "operator": ">=",
+                    "value": 20
+                  }
+                ]
+              }
+            ],
+            "minIntervalMs": 8000
+          },
+          {
+            "skillId": "ranger_quickshot",
+            "enabled": true,
+            "priority": 10,
+            "mode": "auto",
+            "conditionGroups": [
+              {
+                "logic": "AND",
+                "conditions": [
+                  {
+                    "type": "always"
+                  }
+                ]
+              }
+            ],
+            "minIntervalMs": 600
+          }
+        ]
+      }
+    ],
+    "targeting": {
+      "priorities": [
+        "marked",
+        "boss",
+        "elite",
+        "healer",
+        "ranged",
+        "lowestHp"
+      ],
+      "preferClusteredEnemies": true,
+      "clusterRadius": 210,
+      "ignoreLowValueTrashWhenEliteExists": true
+    },
+    "movement": {
+      "strategy": "kite",
+      "preferredRange": 250,
+      "dangerAvoidanceWeight": 0.85,
+      "eliteChaseWeight": 0.55
+    },
+    "inventory": [
+      {
+        "id": "item_weapon_vzowj3z_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "天阶法宝 · 千羽弓",
+        "baseName": "千羽弓",
+        "rarity": "legendary",
+        "itemLevel": 60,
+        "power": 1150,
+        "slot": "weapon",
+        "classRestriction": "ranger",
+        "implicitStats": {
+          "attackPower": 164
+        },
+        "prefixes": [
+          {
+            "id": "pre_guixu",
+            "name": "归墟",
+            "description": "归墟天阶内伤害 +5-14%",
+            "statModifiers": {
+              "damageBonus": 0.09
+            },
+            "tags": [
+              "rift"
+            ],
+            "value": 13
+          },
+          {
+            "id": "pre_huixin",
+            "name": "会心",
+            "description": "暴击率 +3-8%",
+            "statModifiers": {
+              "critChance": 0.05
+            },
+            "tags": [
+              "crit"
+            ],
+            "value": 7
+          },
+          {
+            "id": "pre_fastattack",
+            "name": "迅击",
+            "description": "攻击速度 +5-12%",
+            "statModifiers": {
+              "attackSpeed": 0.08
+            },
+            "tags": [
+              "speed"
+            ],
+            "value": 11
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_guiyi",
+            "name": "之归一",
+            "description": "全伤害 +4-10%",
+            "statModifiers": {
+              "damageBonus": 0.07
+            },
+            "tags": [
+              "damage"
+            ],
+            "value": 10
+          },
+          {
+            "id": "suf_huixiang",
+            "name": "之回响",
+            "description": "技能重复概率 +2-6%",
+            "statModifiers": {
+              "damageBonus": 0.06
+            },
+            "tags": [
+              "trigger"
+            ],
+            "value": 8
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "legendaryPower": {
+          "id": "leg_archer_arrow_fan",
+          "name": "千羽弓",
+          "description": "连珠符箭额外发射扇形小箭，但单箭伤害降低",
+          "statModifiers": {
+            "rangedDamageBonus": 0.14
+          },
+          "tags": [
+            "legendary",
+            "ranger"
+          ],
+          "value": 20
+        }
+      },
+      {
+        "id": "item_offhand_fkb6gfi_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "天阶法宝 · 聚息箭囊",
+        "baseName": "聚息箭囊",
+        "rarity": "legendary",
+        "itemLevel": 60,
+        "power": 1138,
+        "slot": "offhand",
+        "implicitStats": {
+          "resourceRegen": 44
+        },
+        "prefixes": [
+          {
+            "id": "pre_cdr",
+            "name": "归息",
+            "description": "冷却缩减 +4-10%",
+            "statModifiers": {
+              "cooldownReduction": 0.06
+            },
+            "tags": [
+              "skill"
+            ],
+            "value": 8
+          },
+          {
+            "id": "pre_summon",
+            "name": "御灵",
+            "description": "召唤物伤害 +8-20%",
+            "statModifiers": {
+              "summonDamageBonus": 0.14
+            },
+            "tags": [
+              "summon"
+            ],
+            "value": 20
+          },
+          {
+            "id": "pre_yuhuo",
+            "name": "劫火",
+            "description": "劫火裁决伤害 +10-25%",
+            "statModifiers": {
+              "damageBonus": 0.14
+            },
+            "tags": [
+              "season",
+              "ember"
+            ],
+            "value": 20
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_huiyuan",
+            "name": "之回元",
+            "description": "资源回复 +6-14%",
+            "statModifiers": {
+              "resourceRegen": 2
+            },
+            "tags": [
+              "resource"
+            ],
+            "value": 6
+          },
+          {
+            "id": "suf_huixiang",
+            "name": "之回响",
+            "description": "技能重复概率 +2-6%",
+            "statModifiers": {
+              "damageBonus": 0.06
+            },
+            "tags": [
+              "trigger"
+            ],
+            "value": 8
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "legendaryPower": {
+          "id": "leg_archer_focus_quiver",
+          "name": "聚息箭囊",
+          "description": "暴击回复灵息，且提高下一次核心技能伤害",
+          "statModifiers": {
+            "critChance": 0.05
+          },
+          "tags": [
+            "legendary",
+            "ranger"
+          ],
+          "value": 7
+        }
+      },
+      {
+        "id": "item_helmet_j2xqx9l_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "道纪遗宝 · 劫火道冠",
+        "baseName": "劫火道冠",
+        "rarity": "seasonalUnique",
+        "itemLevel": 60,
+        "power": 1142,
+        "slot": "helmet",
+        "implicitStats": {
+          "armor": 163,
+          "maxHp": 380
+        },
+        "prefixes": [
+          {
+            "id": "pre_resist_all",
+            "name": "五行",
+            "description": "全抗性 +4-10%",
+            "statModifiers": {
+              "fireResist": 0.06,
+              "iceResist": 0.039,
+              "lightningResist": 0.039,
+              "poisonResist": 0.039,
+              "shadowResist": 0.039
+            },
+            "tags": [
+              "resist"
+            ],
+            "value": 30
+          },
+          {
+            "id": "pre_max_hp",
+            "name": "护命",
+            "description": "生命上限 +6-16%",
+            "statModifiers": {
+              "maxHp": 42
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 34
+          },
+          {
+            "id": "pre_guixu",
+            "name": "归墟",
+            "description": "归墟天阶内伤害 +5-14%",
+            "statModifiers": {
+              "damageBonus": 0.09
+            },
+            "tags": [
+              "rift"
+            ],
+            "value": 13
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_huming",
+            "name": "之护命",
+            "description": "生命 +6-16%",
+            "statModifiers": {
+              "maxHp": 42
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 34
+          },
+          {
+            "id": "suf_xuanjia",
+            "name": "之玄甲",
+            "description": "护甲 +8-20%",
+            "statModifiers": {
+              "armor": 18
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 14
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "seasonalPower": {
+          "id": "season_relic_tribulation_crown",
+          "name": "劫火道冠",
+          "description": "劫火热度达到 5 层后，暴击率和冷却恢复提高",
+          "statModifiers": {
+            "critChance": 0.06
+          },
+          "tags": [
+            "seasonalUnique",
+            "ember"
+          ],
+          "value": 8
+        }
+      },
+      {
+        "id": "item_chest_cs4qj0b_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "天阶法宝 · 守御法袍",
+        "baseName": "守御法袍",
+        "rarity": "legendary",
+        "itemLevel": 60,
+        "power": 1145,
+        "slot": "chest",
+        "implicitStats": {
+          "armor": 164,
+          "maxHp": 382
+        },
+        "prefixes": [
+          {
+            "id": "pre_max_hp",
+            "name": "护命",
+            "description": "生命上限 +6-16%",
+            "statModifiers": {
+              "maxHp": 42
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 34
+          },
+          {
+            "id": "pre_resist_all",
+            "name": "五行",
+            "description": "全抗性 +4-10%",
+            "statModifiers": {
+              "fireResist": 0.06,
+              "iceResist": 0.039,
+              "lightningResist": 0.039,
+              "poisonResist": 0.039,
+              "shadowResist": 0.039
+            },
+            "tags": [
+              "resist"
+            ],
+            "value": 30
+          },
+          {
+            "id": "pre_summon",
+            "name": "御灵",
+            "description": "召唤物伤害 +8-20%",
+            "statModifiers": {
+              "summonDamageBonus": 0.14
+            },
+            "tags": [
+              "summon"
+            ],
+            "value": 20
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_huming",
+            "name": "之护命",
+            "description": "生命 +6-16%",
+            "statModifiers": {
+              "maxHp": 42
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 34
+          },
+          {
+            "id": "suf_barrier",
+            "name": "之结界",
+            "description": "护盾持续时间 +10-25%",
+            "statModifiers": {
+              "shieldBonus": 0.13
+            },
+            "tags": [
+              "shield"
+            ],
+            "value": 18
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "legendaryPower": {
+          "id": "leg_guardian_robes",
+          "name": "守御法袍",
+          "description": "召唤物存在时玩家减伤 +10%，召唤物减伤 +20%",
+          "statModifiers": {
+            "summonDamageBonus": 0.12
+          },
+          "tags": [
+            "legendary",
+            "ranger"
+          ],
+          "value": 17
+        }
+      },
+      {
+        "id": "item_gloves_b305cms_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "天阶法宝 · 毒藤残阵",
+        "baseName": "毒藤残阵",
+        "rarity": "legendary",
+        "itemLevel": 60,
+        "power": 1132,
+        "slot": "gloves",
+        "implicitStats": {
+          "armor": 161,
+          "maxHp": 377
+        },
+        "prefixes": [
+          {
+            "id": "pre_dot",
+            "name": "蚀骨",
+            "description": "持续伤害 +8-20%",
+            "statModifiers": {
+              "dotDamageBonus": 0.14
+            },
+            "tags": [
+              "dot"
+            ],
+            "value": 20
+          },
+          {
+            "id": "pre_aoe",
+            "name": "广法",
+            "description": "范围伤害 +8-18%",
+            "statModifiers": {
+              "aoeDamageBonus": 0.12
+            },
+            "tags": [
+              "aoe"
+            ],
+            "value": 17
+          },
+          {
+            "id": "pre_fastattack",
+            "name": "迅击",
+            "description": "攻击速度 +5-12%",
+            "statModifiers": {
+              "attackSpeed": 0.08
+            },
+            "tags": [
+              "speed"
+            ],
+            "value": 11
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_trap",
+            "name": "之伏阵",
+            "description": "陷阱持续时间 +10-25%",
+            "statModifiers": {
+              "dotDamageBonus": 0.1
+            },
+            "tags": [
+              "trap"
+            ],
+            "value": 14
+          },
+          {
+            "id": "suf_guiyi",
+            "name": "之归一",
+            "description": "全伤害 +4-10%",
+            "statModifiers": {
+              "damageBonus": 0.07
+            },
+            "tags": [
+              "damage"
+            ],
+            "value": 10
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "legendaryPower": {
+          "id": "leg_archer_poison_cloud",
+          "name": "毒藤残阵",
+          "description": "毒藤符阵触发后留下毒雾区域",
+          "statModifiers": {
+            "dotDamageBonus": 0.18
+          },
+          "tags": [
+            "legendary",
+            "ranger"
+          ],
+          "value": 25
+        }
+      },
+      {
+        "id": "item_pants_25cnosa_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "地阶法器 · 五行下裳之护命",
+        "baseName": "下裳",
+        "rarity": "epic",
+        "itemLevel": 60,
+        "power": 1112,
+        "slot": "pants",
+        "implicitStats": {
+          "armor": 158,
+          "maxHp": 370
+        },
+        "prefixes": [
+          {
+            "id": "pre_resist_all",
+            "name": "五行",
+            "description": "全抗性 +4-10%",
+            "statModifiers": {
+              "fireResist": 0.06,
+              "iceResist": 0.039,
+              "lightningResist": 0.039,
+              "poisonResist": 0.039,
+              "shadowResist": 0.039
+            },
+            "tags": [
+              "resist"
+            ],
+            "value": 30
+          },
+          {
+            "id": "pre_max_hp",
+            "name": "护命",
+            "description": "生命上限 +6-16%",
+            "statModifiers": {
+              "maxHp": 42
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 34
+          },
+          {
+            "id": "pre_armor",
+            "name": "玄甲",
+            "description": "护甲 +8-20%",
+            "statModifiers": {
+              "armor": 18
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 14
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_huming",
+            "name": "之护命",
+            "description": "生命 +6-16%",
+            "statModifiers": {
+              "maxHp": 42
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 34
+          },
+          {
+            "id": "suf_xuanjia",
+            "name": "之玄甲",
+            "description": "护甲 +8-20%",
+            "statModifiers": {
+              "armor": 18
+            },
+            "tags": [
+              "defense"
+            ],
+            "value": 14
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076
+      },
+      {
+        "id": "item_boots_yf0xv04_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "天阶法宝 · 踏影护符",
+        "baseName": "踏影护符",
+        "rarity": "legendary",
+        "itemLevel": 60,
+        "power": 1128,
+        "slot": "boots",
+        "implicitStats": {
+          "armor": 112,
+          "moveSpeed": 0.04
+        },
+        "prefixes": [
+          {
+            "id": "pre_guixu",
+            "name": "归墟",
+            "description": "归墟天阶内伤害 +5-14%",
+            "statModifiers": {
+              "damageBonus": 0.09
+            },
+            "tags": [
+              "rift"
+            ],
+            "value": 13
+          },
+          {
+            "id": "pre_resist_all",
+            "name": "五行",
+            "description": "全抗性 +4-10%",
+            "statModifiers": {
+              "fireResist": 0.06,
+              "iceResist": 0.039,
+              "lightningResist": 0.039,
+              "poisonResist": 0.039,
+              "shadowResist": 0.039
+            },
+            "tags": [
+              "resist"
+            ],
+            "value": 30
+          },
+          {
+            "id": "pre_fastattack",
+            "name": "迅击",
+            "description": "攻击速度 +5-12%",
+            "statModifiers": {
+              "attackSpeed": 0.08
+            },
+            "tags": [
+              "speed"
+            ],
+            "value": 11
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_jifeng",
+            "name": "之疾风",
+            "description": "移动速度 +5-12%",
+            "statModifiers": {
+              "moveSpeed": 0.08
+            },
+            "tags": [
+              "speed"
+            ],
+            "value": 11
+          },
+          {
+            "id": "suf_guiyi",
+            "name": "之归一",
+            "description": "全伤害 +4-10%",
+            "statModifiers": {
+              "damageBonus": 0.07
+            },
+            "tags": [
+              "damage"
+            ],
+            "value": 10
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "legendaryPower": {
+          "id": "leg_archer_shadow_guard",
+          "name": "踏影护符",
+          "description": "踏影步后留下影身吸引怪物 2 秒",
+          "statModifiers": {
+            "moveSpeed": 0.08
+          },
+          "tags": [
+            "legendary",
+            "ranger"
+          ],
+          "value": 11
+        }
+      },
+      {
+        "id": "item_amulet_9w03izl_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "道纪遗宝 · 火狼灵符",
+        "baseName": "火狼灵符",
+        "rarity": "seasonalUnique",
+        "itemLevel": 60,
+        "power": 1150,
+        "slot": "amulet",
+        "implicitStats": {
+          "critChance": 0.12,
+          "damageBonus": 0.1
+        },
+        "prefixes": [
+          {
+            "id": "pre_summon",
+            "name": "御灵",
+            "description": "召唤物伤害 +8-20%",
+            "statModifiers": {
+              "summonDamageBonus": 0.14
+            },
+            "tags": [
+              "summon"
+            ],
+            "value": 20
+          },
+          {
+            "id": "archer_wolf_count",
+            "name": "双狼契",
+            "description": "玄狼数量 +1，召唤物伤害 -15%",
+            "statModifiers": {
+              "summonDamageBonus": 0.14
+            },
+            "tags": [
+              "summon",
+              "ranger"
+            ],
+            "value": 20
+          },
+          {
+            "id": "pre_yuhuo",
+            "name": "劫火",
+            "description": "劫火裁决伤害 +10-25%",
+            "statModifiers": {
+              "damageBonus": 0.14
+            },
+            "tags": [
+              "season",
+              "ember"
+            ],
+            "value": 20
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_pet",
+            "name": "之灵契",
+            "description": "召唤物持续时间 +10-30%，玄狼灵契上限 +1",
+            "statModifiers": {
+              "summonDamageBonus": 0.12
+            },
+            "tags": [
+              "summon"
+            ],
+            "value": 17
+          },
+          {
+            "id": "suf_shenyou",
+            "name": "之神游",
+            "description": "神游收益 +3-10%",
+            "statModifiers": {
+              "resourceRegen": 1.4
+            },
+            "tags": [
+              "idle"
+            ],
+            "value": 6
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "seasonalPower": {
+          "id": "season_relic_ember_wolf_charm",
+          "name": "火狼灵符",
+          "description": "召唤物命中劫火灼身敌人时造成额外火伤",
+          "statModifiers": {
+            "summonDamageBonus": 0.18
+          },
+          "tags": [
+            "seasonalUnique",
+            "ember"
+          ],
+          "value": 25
+        }
+      },
+      {
+        "id": "item_ring1_j7gk67g_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "天阶法宝 · 劫主猎令",
+        "baseName": "劫主猎令",
+        "rarity": "legendary",
+        "itemLevel": 60,
+        "power": 1144,
+        "slot": "ring1",
+        "implicitStats": {
+          "critChance": 0.12,
+          "damageBonus": 0.1
+        },
+        "prefixes": [
+          {
+            "id": "pre_pojing",
+            "name": "破境",
+            "description": "对 Boss 伤害 +8-20%",
+            "statModifiers": {
+              "bossDamageBonus": 0.14
+            },
+            "tags": [
+              "boss"
+            ],
+            "value": 20
+          },
+          {
+            "id": "pre_huixin",
+            "name": "会心",
+            "description": "暴击率 +3-8%",
+            "statModifiers": {
+              "critChance": 0.05
+            },
+            "tags": [
+              "crit"
+            ],
+            "value": 7
+          },
+          {
+            "id": "pre_hunt_elite",
+            "name": "猎煞",
+            "description": "对精英伤害 +8-20%",
+            "statModifiers": {
+              "eliteDamageBonus": 0.14
+            },
+            "tags": [
+              "elite"
+            ],
+            "value": 20
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_pojing",
+            "name": "之破境",
+            "description": "Boss 伤害 +8-20%",
+            "statModifiers": {
+              "bossDamageBonus": 0.13
+            },
+            "tags": [
+              "boss"
+            ],
+            "value": 18
+          },
+          {
+            "id": "suf_liesha",
+            "name": "之猎煞",
+            "description": "击杀精英后 8 秒伤害 +8-18%",
+            "statModifiers": {
+              "eliteDamageBonus": 0.12
+            },
+            "tags": [
+              "elite"
+            ],
+            "value": 17
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "legendaryPower": {
+          "id": "leg_archer_boss_mark",
+          "name": "劫主猎令",
+          "description": "Boss 被标记时，玄狼和玩家对其伤害提高",
+          "statModifiers": {
+            "bossDamageBonus": 0.16
+          },
+          "tags": [
+            "legendary",
+            "ranger"
+          ],
+          "value": 22
+        }
+      },
+      {
+        "id": "item_ring2_pf7hvq2_mpfbjgqc",
+        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "name": "道纪遗宝 · 劫火归元戒",
+        "baseName": "劫火归元戒",
+        "rarity": "seasonalUnique",
+        "itemLevel": 60,
+        "power": 1140,
+        "slot": "ring2",
+        "implicitStats": {
+          "critChance": 0.12,
+          "damageBonus": 0.1
+        },
+        "prefixes": [
+          {
+            "id": "pre_yuhuo",
+            "name": "劫火",
+            "description": "劫火裁决伤害 +10-25%",
+            "statModifiers": {
+              "damageBonus": 0.14
+            },
+            "tags": [
+              "season",
+              "ember"
+            ],
+            "value": 20
+          },
+          {
+            "id": "pre_guixu",
+            "name": "归墟",
+            "description": "归墟天阶内伤害 +5-14%",
+            "statModifiers": {
+              "damageBonus": 0.09
+            },
+            "tags": [
+              "rift"
+            ],
+            "value": 13
+          },
+          {
+            "id": "pre_huixin",
+            "name": "会心",
+            "description": "暴击率 +3-8%",
+            "statModifiers": {
+              "critChance": 0.05
+            },
+            "tags": [
+              "crit"
+            ],
+            "value": 7
+          }
+        ],
+        "suffixes": [
+          {
+            "id": "suf_huiyuan",
+            "name": "之回元",
+            "description": "资源回复 +6-14%",
+            "statModifiers": {
+              "resourceRegen": 2
+            },
+            "tags": [
+              "resource"
+            ],
+            "value": 6
+          },
+          {
+            "id": "suf_guiyi",
+            "name": "之归一",
+            "description": "全伤害 +4-10%",
+            "statModifiers": {
+              "damageBonus": 0.07
+            },
+            "tags": [
+              "damage"
+            ],
+            "value": 10
+          }
+        ],
+        "upgradeLevel": 10,
+        "createdAt": 1779357545076,
+        "seasonalPower": {
+          "id": "season_relic_ember_ring",
+          "name": "劫火归元戒",
+          "description": "击杀劫火灼身敌人回复资源并获得少量生命",
+          "statModifiers": {
+            "resourceRegen": 2.6
+          },
+          "tags": [
+            "seasonalUnique",
+            "ember"
+          ],
+          "value": 6
+        }
+      }
+    ],
+    "materials": {
+      "gold": 0,
+      "spirit_stone": 880000,
+      "ember_remnant": 36000,
+      "black_iron": 2600,
+      "spirit_jade": 1800,
+      "star_sand": 720,
+      "artifact_core": 90,
+      "voidscar_shard": 260,
+      "fireseed": 36,
+      "dao_seal_dust": 60
+    },
+    "completedDungeons": [
+      "domain_qinglan_bamboo",
+      "domain_blackwater_ferry",
+      "domain_broken_sword_barrow",
+      "domain_crimson_alchemy",
+      "domain_starfall_palace",
+      "domain_chixiao_ruins",
+      "domain_artifact_tomb",
+      "domain_spirit_mine",
+      "domain_inner_demon"
+    ],
+    "seasonEmbers": 36000,
+    "seasonPowers": [
+      {
+        "id": "sigil_ember_burst",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "劫火爆裂",
+        "description": "劫火裁决伤害每级 +12%",
+        "category": "damage",
+        "onlineEffectId": "sigil_ember_burst",
+        "offlineEffectId": "damage_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_soul_burn",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "焚魂印",
+        "description": "精英和 Boss 受到劫火灼身时，额外受到每级 +2% 伤害",
+        "category": "damage",
+        "onlineEffectId": "sigil_soul_burn",
+        "offlineEffectId": "damage_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_chain_ember",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "余焰连珠",
+        "description": "暴击有 4%/级 概率弹射劫火，最多命中 3 个敌人",
+        "category": "damage",
+        "onlineEffectId": "sigil_chain_ember",
+        "offlineEffectId": "damage_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_overheat",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "火劫过载",
+        "description": "核心技能伤害 +5%/级，但资源消耗 +3%/级",
+        "category": "damage",
+        "onlineEffectId": "sigil_overheat",
+        "offlineEffectId": "damage_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_ember_execute",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "焚灭诀",
+        "description": "对生命低于 30% 的敌人，劫火伤害 +8%/级",
+        "category": "damage",
+        "onlineEffectId": "sigil_ember_execute",
+        "offlineEffectId": "damage_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_boss_brand",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "劫主烙印",
+        "description": "Boss 阶段劫火值获取 +6%/级",
+        "category": "damage",
+        "onlineEffectId": "sigil_boss_brand",
+        "offlineEffectId": "damage_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_flame_crit",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "火种会心",
+        "description": "劫火灼身目标受到暴击率 +1%/级",
+        "category": "damage",
+        "onlineEffectId": "sigil_flame_crit",
+        "offlineEffectId": "damage_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_xuangang_guard",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "玄罡护体",
+        "description": "生命低于 45% 时获得护盾，护盾值为最大生命 6%/级",
+        "category": "defense",
+        "onlineEffectId": "sigil_xuangang_guard",
+        "offlineEffectId": "survival_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_suppress_fiend",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "镇煞法印",
+        "description": "精英和 Boss 对你造成的伤害 -2.5%/级",
+        "category": "defense",
+        "onlineEffectId": "sigil_suppress_fiend",
+        "offlineEffectId": "survival_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_still_mind",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "静心守一",
+        "description": "站定 2 秒后获得减伤 1.5%/级",
+        "category": "defense",
+        "onlineEffectId": "sigil_still_mind",
+        "offlineEffectId": "survival_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_domain_guide",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "洞天指引",
+        "description": "击杀怪物获得副本进度 +2%/级",
+        "category": "utility",
+        "onlineEffectId": "sigil_domain_guide",
+        "offlineEffectId": "idle_or_efficiency_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_spirit_expedition",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "神游收益",
+        "description": "神游历练收益 +3%/级",
+        "category": "utility",
+        "onlineEffectId": "sigil_spirit_expedition",
+        "offlineEffectId": "idle_or_efficiency_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_loot_sense",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "灵宝感应",
+        "description": "高品质掉落权重 +1.5%/级",
+        "category": "utility",
+        "onlineEffectId": "sigil_loot_sense",
+        "offlineEffectId": "idle_or_efficiency_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_stable_route",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "稳定神游",
+        "description": "神游历练失败率 -2%/级",
+        "category": "utility",
+        "onlineEffectId": "sigil_stable_route",
+        "offlineEffectId": "idle_or_efficiency_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_ember_income",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "残烬采撷",
+        "description": "劫火残烬获取 +4%/级",
+        "category": "utility",
+        "onlineEffectId": "sigil_ember_income",
+        "offlineEffectId": "idle_or_efficiency_bonus",
+        "level": 5,
+        "maxLevel": 5,
+        "costPerLevel": 60
+      },
+      {
+        "id": "sigil_tianji_loop",
+        "seasonId": "dao_era_1_ember_tribulation",
+        "name": "天机轮转",
+        "description": "每次触发劫火裁决，随机减少一个非基础技能 15% 剩余冷却",
+        "category": "utility",
+        "onlineEffectId": "sigil_tianji_loop",
+        "offlineEffectId": "idle_or_efficiency_bonus",
+        "level": 1,
+        "maxLevel": 1,
+        "costPerLevel": 120
+      }
+    ],
+    "highestRiftTier": 120,
+    "stableIdleRiftTier": 118,
+    "createdAt": 1779357545076,
+    "totalPlayTimeSeconds": 4838400,
+    "totalIdleSeconds": 1555200
+  },
+  "reports": [
+    {
+      "id": "report_grad_asm8xws_mpfbjgqc",
+      "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+      "contentName": "归墟天阶",
+      "riftTier": 120,
+      "result": "success",
+      "durationMs": 214000,
+      "deaths": 0,
+      "kills": 426,
+      "eliteKills": 6,
+      "bossName": "赤霄旧祖",
+      "totalDamage": 98200000,
+      "totalHealing": 460000,
+      "damageTaken": 390000,
+      "shieldAbsorbed": 220000,
+      "actors": {},
+      "rewards": {
+        "exp": 0,
+        "gold": 0,
+        "embers": 720,
+        "materials": {
+          "voidscar_shard": 12,
+          "fireseed": 2,
+          "star_sand": 28
+        },
+        "itemIds": [
+          "item_weapon_vzowj3z_mpfbjgqc",
+          "item_offhand_fkb6gfi_mpfbjgqc",
+          "item_helmet_j2xqx9l_mpfbjgqc"
+        ],
+        "salvagedCount": 18
+      },
+      "createdAt": 1779357545076
+    }
+  ]
+}

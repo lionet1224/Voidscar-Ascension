@@ -1,33 +1,7 @@
-import { baseNames, equipmentSlots, legendaryPowers, prefixes, rarityLabels, rarityRank, suffixes } from "../data/affixes";
+import { baseNames, equipmentSlots, legendaryPowers, prefixes, rarityLabels, rarityRank, seasonalPowers, suffixes } from "../data/affixes";
+import { dropTables, itemPowerBands, salvageYields } from "../data/seasonDataPack";
 import type { Character, EquipmentSlot, Item, ItemAffix, ItemRarity, LootFilter } from "../types";
 import { pick, uid } from "./id";
-
-const rarityWeightsNormal: [ItemRarity, number][] = [
-  ["normal", 45],
-  ["magic", 30],
-  ["rare", 18],
-  ["epic", 6],
-  ["legendary", 1],
-  ["seasonalUnique", 0.2],
-];
-
-const rarityWeightsRift30: [ItemRarity, number][] = [
-  ["normal", 10],
-  ["magic", 25],
-  ["rare", 35],
-  ["epic", 22],
-  ["legendary", 7],
-  ["seasonalUnique", 1],
-];
-
-const rarityWeightsRift60: [ItemRarity, number][] = [
-  ["normal", 0],
-  ["magic", 12],
-  ["rare", 38],
-  ["epic", 35],
-  ["legendary", 13],
-  ["seasonalUnique", 2],
-];
 
 export function generateLoot(character: Character, contentLevel: number, riftTier = 0, count = 3): Item[] {
   return Array.from({ length: count }, () => createItem(character, contentLevel, riftTier));
@@ -37,39 +11,35 @@ export function createItem(character: Character, contentLevel: number, riftTier 
   const rarity = rollRarity(riftTier, contentLevel);
   const slot = pick(equipmentSlots);
   const baseName = pick(baseNames[slot]);
-  const itemLevel = Math.max(1, contentLevel + Math.floor(Math.random() * 5) + Math.floor(riftTier * 0.35));
-  const power = Math.floor(itemLevel * 8 + rarityRank[rarity] * 22 + Math.random() * 18);
+  const itemPowerBand = getItemPowerBand(contentLevel, riftTier);
+  const itemLevel = Math.max(1, Math.min(60, contentLevel + Math.floor(Math.random() * 5) + Math.floor(riftTier * 0.1)));
+  const power = Math.floor(itemPowerBand.min + Math.random() * (itemPowerBand.max - itemPowerBand.min) + rarityRank[rarity] * 18);
   const prefixCount = rarity === "normal" ? 0 : rarity === "magic" ? 1 : rarity === "rare" ? 2 : 3;
   const suffixCount = rarity === "normal" ? 0 : rarity === "magic" ? 1 : rarity === "rare" ? 2 : 2;
   const rolledPrefixes = rollAffixes(prefixes, prefixCount);
   const rolledSuffixes = rollAffixes(suffixes, suffixCount);
-  const legend = rarity === "legendary" ? pick(legendaryPowers.filter((power) => power.classId === character.classId) || legendaryPowers) : undefined;
-  const seasonalPower: ItemAffix | undefined =
-    rarity === "seasonalUnique"
-      ? {
-          id: "seasonal_ash_ring",
-          name: "赤霄劫火",
-          description: "劫火裁决伤害和劫火残烬收益提高。",
-          statModifiers: { damageBonus: 0.16, shieldBonus: 0.1 },
-          tags: ["season"],
-          value: 34,
-        }
-      : undefined;
+  const legendPool = legendaryPowers.filter((power) => power.classId === character.classId && power.slot === slot);
+  const legend = rarity === "legendary" ? pick(legendPool.length ? legendPool : legendaryPowers.filter((power) => power.classId === character.classId)) : undefined;
+  const relicPool = seasonalPowers.filter((power) => power.slot === slot);
+  const relic = rarity === "seasonalUnique" ? pick(relicPool.length ? relicPool : seasonalPowers) : undefined;
+  const seasonalPower: ItemAffix | undefined = relic?.affix;
   const name =
     rarity === "seasonalUnique"
-      ? `${rarityLabels[rarity]} · 赤霄劫火${baseName}`
-      : `${rarityLabels[rarity]} · ${rolledPrefixes[0]?.name ?? ""} ${baseName} ${rolledSuffixes[0]?.name ?? ""}`.replace(/\s+/g, " ").trim();
+      ? `${rarityLabels[rarity]} · ${relic?.name ?? `赤霄劫火${baseName}`}`
+      : rarity === "legendary" && legend
+        ? `${rarityLabels[rarity]} · ${legend.name}`
+        : `${rarityLabels[rarity]} · ${rolledPrefixes[0]?.name ?? ""} ${baseName} ${rolledSuffixes[0]?.name ?? ""}`.replace(/\s+/g, " ").trim();
   return {
     id: uid("item"),
     characterId: character.id,
     name,
-    baseName,
+    baseName: rarity === "legendary" && legend ? legend.name : rarity === "seasonalUnique" && relic ? relic.name : baseName,
     rarity,
     itemLevel,
     power,
-    slot,
+    slot: rarity === "legendary" && legend ? legend.slot : rarity === "seasonalUnique" && relic ? relic.slot : slot,
     classRestriction: slot === "weapon" && Math.random() > 0.45 ? character.classId : undefined,
-    implicitStats: implicitFor(slot, power),
+    implicitStats: implicitFor(rarity === "legendary" && legend ? legend.slot : rarity === "seasonalUnique" && relic ? relic.slot : slot, power),
     prefixes: rolledPrefixes,
     suffixes: rolledSuffixes,
     legendaryPower: legend?.slot === slot ? legend.affix : rarity === "legendary" ? legend?.affix : undefined,
@@ -94,11 +64,10 @@ export function shouldKeepItem(item: Item, filter: LootFilter, character: Charac
 }
 
 export function salvageItem(item: Item) {
-  if (item.rarity === "seasonalUnique") return { ashCore: 1 };
-  if (item.rarity === "legendary") return { legendaryEmber: 1 };
-  if (item.rarity === "epic") return { riftShard: 2 };
-  if (item.rarity === "rare" || item.rarity === "magic") return { magicDust: item.rarity === "rare" ? 3 : 1 };
-  return { scrapIron: 2 };
+  const yields = salvageYields[item.rarity];
+  return Object.fromEntries(
+    Object.entries(yields).map(([material, [min, max]]) => [material, randomInt(min, max)]),
+  );
 }
 
 export function applyLoot(materialState: Record<string, number>, character: Character, items: Item[], filter: LootFilter) {
@@ -131,34 +100,21 @@ export function rarityColor(rarity: ItemRarity) {
 }
 
 function rollRarity(riftTier: number, contentLevel: number) {
-  const weights = riftTier >= 60
-    ? rarityWeightsRift60
-    : riftTier >= 30
-      ? rarityWeightsRift30
-      : contentLevel <= 10
-        ? [
-            ["normal", 55],
-            ["magic", 32],
-            ["rare", 13],
-          ] satisfies [ItemRarity, number][]
-        : contentLevel <= 20
-          ? [
-              ["normal", 28],
-              ["magic", 40],
-              ["rare", 27],
-              ["epic", 5],
-            ] satisfies [ItemRarity, number][]
-          : contentLevel <= 30
-            ? [
-                ["magic", 28],
-                ["rare", 50],
-                ["epic", 21.5],
-                ["legendary", 0.5],
-              ] satisfies [ItemRarity, number][]
-            : rarityWeightsNormal;
-  const total = weights.reduce((sum, [, weight]) => sum + weight, 0);
+  const table = riftTier
+    ? dropTables.find((entry) => riftTier >= entry.minTier && riftTier <= entry.maxTier) ?? dropTables[dropTables.length - 1]
+    : dropTables[0];
+  const weights = Object.entries(table.weights) as [ItemRarity, number][];
+  const earlyWeights: [ItemRarity, number][] =
+    !riftTier && contentLevel <= 10
+      ? [
+          ["normal", 55],
+          ["magic", 32],
+          ["rare", 13],
+        ]
+      : weights;
+  const total = earlyWeights.reduce((sum, [, weight]) => sum + weight, 0);
   let roll = Math.random() * total;
-  for (const [rarity, weight] of weights) {
+  for (const [rarity, weight] of earlyWeights) {
     roll -= weight;
     if (roll <= 0) return rarity;
   }
@@ -180,4 +136,31 @@ function implicitFor(slot: EquipmentSlot, power: number) {
   if (slot === "amulet" || slot === "ring1" || slot === "ring2") return { critChance: Math.min(0.12, power / 3000), damageBonus: Math.min(0.1, power / 4000) };
   if (slot === "boots") return { armor: Math.floor(power / 10), moveSpeed: 0.04 };
   return { armor: Math.floor(power / 7), maxHp: Math.floor(power / 3) };
+}
+
+function getItemPowerBand(contentLevel: number, riftTier: number) {
+  const source = riftTier
+    ? riftTier <= 30
+      ? "归墟天阶 1-30"
+      : riftTier <= 60
+        ? "归墟天阶 31-60"
+        : riftTier <= 90
+          ? "归墟天阶 61-90"
+          : "归墟天阶 91-120"
+    : contentLevel <= 10
+      ? "1-10 级秘境"
+      : contentLevel <= 20
+        ? "11-20 级秘境"
+        : contentLevel <= 30
+          ? "21-30 级秘境"
+          : contentLevel <= 40
+            ? "31-40 级秘境"
+            : contentLevel <= 50
+              ? "41-50 级秘境"
+              : "51-60 级秘境";
+  return itemPowerBands.find((band) => band.source === source) ?? itemPowerBands[0];
+}
+
+function randomInt(min: number, max: number) {
+  return Math.floor(min + Math.random() * (max - min + 1));
 }

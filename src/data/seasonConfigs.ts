@@ -1,44 +1,114 @@
 import type { SeasonDefinition, SeasonPower } from "../types";
+import { buildGuides, emberMechanic, finalBoss, seasonChapters, seasonPackMeta, seasonSigils } from "./seasonDataPack";
 
-export const CURRENT_SEASON_ID = "s1_ashen_pact";
-export const CURRENT_VERSION = "0.1.0";
+export const CURRENT_SEASON_ID = "dao_era_1_ember_tribulation";
+export const CURRENT_VERSION = "0.2.0";
 
-const ashenPowers: SeasonPower[] = [
-  { id: "ashen_burst", seasonId: CURRENT_SEASON_ID, name: "劫火爆裂", description: "击杀一定数量敌人后触发范围爆炸。", category: "damage", onlineEffectId: "kill_explosion", offlineEffectId: "damage_bonus", level: 0, maxLevel: 5, costPerLevel: 50 },
-  { id: "burning_mark", seasonId: CURRENT_SEASON_ID, name: "焚魂印", description: "精英和劫主周期性受到燃烧。", category: "damage", onlineEffectId: "elite_burn", offlineEffectId: "boss_bonus", level: 0, maxLevel: 5, costPerLevel: 60 },
-  { id: "ember_chain", seasonId: CURRENT_SEASON_ID, name: "余焰连珠", description: "暴击时弹射劫火。", category: "damage", onlineEffectId: "crit_chain", offlineEffectId: "crit_bonus", level: 0, maxLevel: 5, costPerLevel: 65 },
-  { id: "core_overload", seasonId: CURRENT_SEASON_ID, name: "火劫过载", description: "核心战诀伤害提高，但资源消耗提高。", category: "damage", onlineEffectId: "resource_overload", offlineEffectId: "power_bonus", level: 0, maxLevel: 5, costPerLevel: 80 },
-  { id: "charred_shield", seasonId: CURRENT_SEASON_ID, name: "玄罡护体", description: "低生命时获得护盾。", category: "defense", onlineEffectId: "low_hp_shield", offlineEffectId: "survival_bonus", level: 0, maxLevel: 5, costPerLevel: 50 },
-  { id: "ash_cloak", seasonId: CURRENT_SEASON_ID, name: "镇煞法印", description: "降低精英和劫主伤害。", category: "defense", onlineEffectId: "elite_dr", offlineEffectId: "survival_bonus", level: 0, maxLevel: 5, costPerLevel: 55 },
-  { id: "rewarm", seasonId: CURRENT_SEASON_ID, name: "余温回生", description: "击杀燃烧敌人时回复生命。", category: "defense", onlineEffectId: "burn_heal", offlineEffectId: "death_reduction", level: 0, maxLevel: 5, costPerLevel: 60 },
-  { id: "scorched_stance", seasonId: CURRENT_SEASON_ID, name: "静心守一", description: "站定一段时间后获得减伤。", category: "defense", onlineEffectId: "stand_dr", offlineEffectId: "survival_bonus", level: 0, maxLevel: 5, costPerLevel: 70 },
-  { id: "rift_guidance", seasonId: CURRENT_SEASON_ID, name: "洞天指引", description: "洞天秘境进度获取提高。", category: "utility", onlineEffectId: "progress_bonus", offlineEffectId: "run_speed", level: 0, maxLevel: 5, costPerLevel: 45 },
-  { id: "ash_refund", seasonId: CURRENT_SEASON_ID, name: "灵元回流", description: "核心战诀有概率返还资源。", category: "utility", onlineEffectId: "resource_refund", offlineEffectId: "power_bonus", level: 0, maxLevel: 5, costPerLevel: 55 },
-  { id: "warm_speed", seasonId: CURRENT_SEASON_ID, name: "御风疾行", description: "击杀后短暂提高移动速度。", category: "utility", onlineEffectId: "kill_speed", offlineEffectId: "run_speed", level: 0, maxLevel: 5, costPerLevel: 50 },
-  { id: "cleanup_profit", seasonId: CURRENT_SEASON_ID, name: "神游收益", description: "神游历练获得额外劫火残烬。", category: "utility", onlineEffectId: "ember_bonus", offlineEffectId: "ember_bonus", level: 0, maxLevel: 5, costPerLevel: 65 },
-];
+const sigilPowers: SeasonPower[] = seasonSigils.map((sigil) => ({
+  id: sigil.id,
+  seasonId: CURRENT_SEASON_ID,
+  name: sigil.name,
+  description: sigil.effect,
+  category: sigil.category,
+  onlineEffectId: sigil.id,
+  offlineEffectId: sigil.route === "tianji" ? "idle_or_efficiency_bonus" : sigil.route === "xuangang" ? "survival_bonus" : "damage_bonus",
+  level: 0,
+  maxLevel: sigil.maxLevel,
+  costPerLevel: "core" in sigil && sigil.core ? 120 : 60,
+}));
 
 export const seasonDefinitions: Record<string, SeasonDefinition> = {
   [CURRENT_SEASON_ID]: {
     id: CURRENT_SEASON_ID,
-    name: "第一道纪：劫火初燃",
+    name: seasonPackMeta.seasonName,
     shortName: "劫火初燃",
     theme: "劫火、赤霄宗、归墟道痕、神游历练",
     currencyName: "劫火残烬",
-    description: "南离火脉崩坏，赤霄宗旧址在归墟中重现。收集劫火残烬，修复天机命盘，镇压劫火源头。",
+    description: "南离火脉崩坏，赤霄宗旧址在归墟中重现。积累劫火值触发劫火裁决，在风险递增的劫火热度中刷装、冲层并镇压赤霄旧祖。",
     mechanics: [
-      { id: "ash_judgement", name: "劫火裁决", description: "击杀劫煞积累劫火，满值后自动爆发。", trigger: "击杀与精英击杀", effect: "对周围敌人造成火焰伤害并短暂标记劫主。" },
-      { id: "ember_contract", name: "命盘推演", description: "连续镇煞会提高天机命盘推演精度。", trigger: "连续击杀", effect: "提高劫火残烬掉落和清图速度，但略微提高承伤。" },
+      {
+        id: emberMechanic.id,
+        name: emberMechanic.name,
+        description: "击杀怪物、击杀精英、命中 Boss 会积累劫火值，满 100 后自动爆发。",
+        trigger: "小怪 +2，特殊怪 +3，精英 +20，Boss 每损失 10% 生命 +8",
+        effect: "对 420 范围敌人造成 350% 攻击强度火焰伤害，并附加 6 秒劫火灼身。",
+      },
+      {
+        id: "ember_heat",
+        name: "劫火热度",
+        description: "每次触发劫火裁决，本场战斗获得 1 层热度，速刷收益和风险同步提高。",
+        trigger: "每次劫火裁决",
+        effect: "最高 10 层；奖励提高，怪物伤害、生命和精英压力逐步提高。",
+      },
+      {
+        id: "chixiao_final_oath",
+        name: finalBoss.name,
+        description: "归墟天阶 100 层后开放的第一道纪终极挑战。",
+        trigger: finalBoss.unlock,
+        effect: "三阶段考验清怪、机制目标和劫火裁决节奏，首次击败高概率获得道纪遗宝。",
+      },
     ],
     equipmentMechanics: [
-      { id: "seasonal_unique", name: "道纪遗宝", itemRarity: "seasonalUnique", description: "当前道纪专属法器，带劫火词条和玄罡护体联动。", affixTags: ["劫火", "归墟", "玄罡"] },
-      { id: "ash_affixes", name: "劫火词缀池", itemRarity: "epic", description: "法器可出现劫火、归墟、聚灵等道纪前缀。", affixTags: ["劫火", "归墟", "聚灵"] },
+      {
+        id: "seasonal_unique",
+        name: "道纪遗宝",
+        itemRarity: "seasonalUnique",
+        description: "第一道纪专属法器，固定效果围绕劫火裁决、劫火灼身、热度和赤霄旧祖挑战。",
+        affixTags: ["劫火", "归墟", "赤霄"],
+      },
+      {
+        id: "legendary_pool",
+        name: "天阶法宝",
+        itemRarity: "legendary",
+        description: "48 件通用和职业天阶法宝支撑多种修行流派成形。",
+        affixTags: ["剑修", "灵弓", "术修", "通用"],
+      },
+      {
+        id: "season_affixes",
+        name: "道纪词缀池",
+        itemRarity: "epic",
+        description: "20 条赛季词缀补强劫火值获取、裁决伤害、神游收益和终极 Boss 表现。",
+        affixTags: ["劫火裁决", "劫火灼身", "神游", "赤霄誓火"],
+      },
     ],
     activities: [
-      { id: "ash_rift", name: "劫火秘境", description: "归墟天阶中的道纪变体，精英劫煞更密集，残烬收益更高。", unlockHint: "完成赤炼丹窟后解锁。", rewardTags: ["劫火残烬", "劫火核心", "道纪遗宝"] },
-      { id: "contract_tasks", name: "天机委托", description: "围绕战诀、法器和镇煞效率的小目标，提供道纪材料。", unlockHint: "创建应劫者后开放。", rewardTags: ["劫火残烬", "魔尘", "归墟晶片"] },
+      {
+        id: "domain_cycle",
+        name: "洞天秘境",
+        description: "6 个普通秘境覆盖 1-60 级成长，25/50/75% 出精英，100% 出 Boss。",
+        unlockHint: "青岚竹海初始开放，后续随等级与通关推进。",
+        rewardTags: ["法器", "强化材料", "劫火残烬", "劫火种"],
+      },
+      {
+        id: "voidscar_ascent",
+        name: "归墟天阶",
+        description: "1-120 层终局冲层，按层数提升怪物成长、天阶词缀、煞印数量和掉落品质。",
+        unlockHint: "30 级、通关断剑荒冢、拥有完整战诀配置。",
+        rewardTags: ["天阶法宝", "道纪遗宝", "归墟残片", "法印尘"],
+      },
+      {
+        id: "spirit_expedition",
+        name: "神游历练",
+        description: "最多累计 24 小时收益，只能刷已通关稳定层，并生成简化道痕记录。",
+        unlockHint: "拥有可神游内容后开放。",
+        rewardTags: ["离线经验", "法器", "劫火残烬", "自动分解材料"],
+      },
+      {
+        id: "season_chapters",
+        name: "赛季章节",
+        description: `${seasonChapters.length} 章目标引导应劫者从初入归墟推进到天阶 100 与赤霄旧祖。`,
+        unlockHint: "创建应劫者后开放。",
+        rewardTags: ["战诀预设槽", "保底箱", "称号", "终极奖励箱"],
+      },
+      {
+        id: "build_guides",
+        name: "流派参悟",
+        description: `${buildGuides.length} 套流派思路覆盖速刷、高层镇煞、劫主爆发、御灵召唤和神游历练。`,
+        unlockHint: "在道痕记录与万象图鉴中逐步参悟。",
+        rewardTags: ["战诀重点", "核心法宝", "核心词缀", "推荐法印"],
+      },
     ],
-    powers: ashenPowers,
+    powers: sigilPowers,
   },
 };
 

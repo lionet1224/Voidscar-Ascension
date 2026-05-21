@@ -1,4 +1,4 @@
-import type { Character, CharacterStats, Dungeon, RewardBundle, Skill } from "../types";
+import type { Character, CharacterStats, Dungeon, Item, RewardBundle, Skill } from "../types";
 
 export type BattleState = "idle" | "preparing" | "running" | "paused" | "bossSpawned" | "success" | "failed" | "settling";
 
@@ -11,7 +11,7 @@ export interface CombatActor {
   id: string;
   name: string;
   type: "player" | "monster" | "summon";
-  monsterType?: "trash" | "elite" | "boss" | "ranged" | "healer" | "shieldBearer";
+  monsterType?: "trash" | "elite" | "boss" | "ranged" | "charger" | "healer" | "shieldBearer" | "summoner" | "bomber";
   eliteAffixes?: string[];
   hp: number;
   maxHp: number;
@@ -80,14 +80,24 @@ export interface CombatSession {
   riftTier?: number;
   character: Character;
   effectiveStats: CharacterStats;
+  equippedPowerIds: string[];
   player: CombatActor;
   monsters: CombatActor[];
   summons: CombatActor[];
   floats: FloatingText[];
   effects: SkillEffect[];
+  droppedItems: Item[];
+  movementIntent?: {
+    target: Vector2;
+    expiresAt: number;
+    reason: "retreat" | "advance" | "orbit";
+  };
   cooldowns: Record<string, number>;
   lastCastAt: Record<string, number>;
   progress: number;
+  emberValue: number;
+  emberHeat: number;
+  riftModifiers?: string[];
   milestones: Record<number, boolean>;
   spawnTimer: number;
   elapsedMs: number;

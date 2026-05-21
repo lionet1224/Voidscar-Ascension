@@ -236,6 +236,8 @@ export interface SeasonPower {
   costPerLevel: number;
 }
 
+export type MonsterFamilyId = "beast" | "ghost" | "demonic" | "construct" | "fiend";
+
 export interface SeasonMechanic {
   id: string;
   name: string;
@@ -277,19 +279,25 @@ export interface Dungeon {
   id: string;
   name: string;
   recommendedLevel: [number, number];
-  family: "paper" | "rust" | "darkScreen" | "electric";
+  family: MonsterFamilyId;
   bossName: string;
   basePower: number;
+  kind?: "normal" | "material";
+  unlockHint?: string;
+  rewardTags?: string[];
+  baseClearTime?: number;
 }
 
 export interface MonsterTemplate {
   id: string;
   name: string;
-  family: "paper" | "rust" | "darkScreen" | "electric";
+  family: MonsterFamilyId;
   type: "trash" | "ranged" | "charger" | "summoner" | "healer" | "shieldBearer" | "bomber" | "elite" | "boss";
   baseHp: number;
   baseDamage: number;
   baseArmor: number;
+  moveSpeed?: number;
+  attackRange?: number;
   progressValue: number;
   tags: string[];
 }
