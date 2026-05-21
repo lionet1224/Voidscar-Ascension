@@ -1,0 +1,12 @@
+export { HomePage } from "./HomePage";
+export { CharacterPage } from "./CharacterPage";
+export { BattlePage } from "./BattlePage";
+export { SkillsPage } from "./SkillsPage";
+export { InventoryPage } from "./InventoryPage";
+export { DungeonPage } from "./DungeonPage";
+export { RiftPage } from "./RiftPage";
+export { SeasonPage } from "./SeasonPage";
+export { ReportsPage } from "./ReportsPage";
+export { PatchNotesPage } from "./PatchNotesPage";
+export { SettingsPage } from "./SettingsPage";
+export { DatabasePage } from "./DatabasePage";
