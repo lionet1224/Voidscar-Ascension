@@ -326,20 +326,22 @@ function castPlayerSkill(session: CombatSession) {
   const targets =
     skill.id === "ranger_quickshot" && hasEquippedPower(session, "leg_archer_arrow_fan")
       ? chooseNearbyTargets(session, target, 4, 160)
-      : skill.id === "mage_chain_lightning" && hasEquippedPower(session, "leg_mage_thunder_book")
-        ? chooseNearbyTargets(session, target, 5, 190)
-        : skill.id === "mage_arcane_missiles" && hasEquippedPower(session, "leg_mage_missile_storm")
-          ? chooseNearbyTargets(session, target, 4, 150)
-      : skill.tags.includes("aoe")
-        ? session.monsters.filter((monster) => distance(monster.position, target?.position ?? player.position) <= (skill.radius ?? 120))
-        : target
-          ? [target]
-          : [];
+      : skill.id === "ranger_piercing_arrow" && target && hasEquippedPower(session, "leg_archer_return_arrow")
+        ? chooseLineTargets(session, player.position, target.position, 4, 58)
+        : skill.id === "mage_chain_lightning" && hasEquippedPower(session, "leg_mage_thunder_book")
+          ? chooseNearbyTargets(session, target, 5, 190)
+          : skill.id === "mage_arcane_missiles" && hasEquippedPower(session, "leg_mage_missile_storm")
+            ? chooseNearbyTargets(session, target, 4, 150)
+            : skill.tags.includes("aoe")
+              ? session.monsters.filter((monster) => distance(monster.position, target?.position ?? player.position) <= (skill.radius ?? 120))
+              : target
+                ? [target]
+                : [];
   const quickshotScale = skill.id === "ranger_quickshot" && hasEquippedPower(session, "leg_archer_arrow_fan") ? 0.78 : 1;
   const missileScale = skill.id === "mage_arcane_missiles" && hasEquippedPower(session, "leg_mage_missile_storm") ? 0.72 : 1;
   applySkillDamage(session, skill, targets, undefined, session.player.position, { damageScale: quickshotScale * missileScale });
   if (skill.id === "ranger_piercing_arrow" && hasEquippedPower(session, "leg_archer_return_arrow") && targets.length) {
-    applySkillDamage(session, skill, targets, undefined, targets[0].position, { damageScale: 0.62, label: "返矢", skipStatus: true });
+    triggerReturningArrow(session, skill, targets[0]);
   }
   if (skill.id === "ranger_arrow_rain" && hasEquippedPower(session, "leg_archer_rain_echo") && targets.length) {
     applySkillDamage(session, skill, targets, undefined, targets[0].position, { damageScale: 0.36, label: "余落", skipStatus: true });
@@ -1558,12 +1560,48 @@ function restoreResource(session: CombatSession, amount: number, label: string) 
   float(session, session.player.position, "", `${label}+${Math.floor(gained)}`, "resource", gained);
 }
 
+function triggerReturningArrow(session: CombatSession, skill: Skill, farTarget: CombatActor) {
+  const returnTargets = chooseLineTargets(session, farTarget.position, session.player.position, 5, 72);
+  if (!returnTargets.length) return;
+  applySkillDamage(session, skill, returnTargets, undefined, farTarget.position, { damageScale: 0.88, label: "回矢", skipStatus: true });
+  returnTargets.forEach((target) => addStatus(target, createStatus("mark", skill, 0)));
+  restoreResource(session, Math.min(18, 5 + returnTargets.length * 3), "回矢");
+  addEffect(session, {
+    kind: "line",
+    from: farTarget.position,
+    to: session.player.position,
+    color: "#38bdf8",
+    radius: 28,
+    width: 7,
+    durationMs: 860,
+  });
+  float(session, farTarget.position, "矢", `贯返x${returnTargets.length}`, "crit", returnTargets.length);
+}
+
 function chooseNearbyTargets(session: CombatSession, target: CombatActor | undefined, count: number, radius: number) {
   if (!target) return [];
   const near = session.monsters
     .filter((monster) => monster.id === target.id || distance(monster.position, target.position) <= radius)
     .sort((a, b) => distance(a.position, target.position) - distance(b.position, target.position));
   return near.slice(0, count);
+}
+
+function chooseLineTargets(session: CombatSession, from: Vector2, to: Vector2, count: number, width: number) {
+  return [...session.monsters]
+    .filter((monster) => monster.hp > 0)
+    .map((monster) => ({ monster, lineDistance: distanceToSegment(monster.position, from, to), travelDistance: distance(monster.position, from) }))
+    .filter((entry) => entry.lineDistance <= width)
+    .sort((a, b) => a.lineDistance - b.lineDistance || a.travelDistance - b.travelDistance)
+    .slice(0, count)
+    .map((entry) => entry.monster);
+}
+
+function distanceToSegment(point: Vector2, from: Vector2, to: Vector2) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const lengthSquared = dx * dx + dy * dy || 1;
+  const t = clamp(((point.x - from.x) * dx + (point.y - from.y) * dy) / lengthSquared, 0, 1);
+  return distance(point, { x: from.x + dx * t, y: from.y + dy * t });
 }
 
 function countSummons(session: CombatSession, skillId: string) {
