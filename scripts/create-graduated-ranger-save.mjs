@@ -136,7 +136,7 @@ const character = {
   stats,
   equipment,
   skillLoadout: {
-    skillIds: ["ranger_quickshot", "ranger_piercing_arrow", "ranger_poison_trap", "ranger_arrow_rain", "ranger_wolf"],
+    skillIds: ["ranger_quickshot", "ranger_piercing_arrow", "ranger_shadow_step", "ranger_arrow_rain", "ranger_wolf"],
     activeProfileId: "graduate_ranger",
   },
   skillRanks: {
@@ -154,6 +154,7 @@ const character = {
       name: "穿云火狼终局循环",
       rules: [
         rule("ranger_wolf", 94, [{ type: "summonCountBelow", operator: "<", value: 1 }], 18000, { reserveForBoss: true }),
+        rule("ranger_shadow_step", 92, [{ type: "enemyCountNearby", operator: ">=", value: 1, radius: 260 }], 10000),
         rule("ranger_arrow_rain", 88, [{ type: "enemyCountNearby", operator: ">=", value: 2, radius: 300 }, { type: "resourceAbove", operator: ">=", value: 35 }], 12000),
         rule("ranger_piercing_arrow", 80, [{ type: "enemyCountNearby", operator: ">=", value: 1, radius: 330 }, { type: "resourceAbove", operator: ">=", value: 18 }], 2000),
         rule("ranger_poison_trap", 74, [{ type: "enemyCountNearby", operator: ">=", value: 2, radius: 160 }, { type: "resourceAbove", operator: ">=", value: 20 }], 8000),

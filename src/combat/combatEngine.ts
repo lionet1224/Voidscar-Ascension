@@ -11,6 +11,63 @@ import type { CombatActor, CombatSession, CombatStatusEffect, FloatingText, Skil
 const ARENA = 560;
 const PLAYER_EDGE_MARGIN = 86;
 
+export const implementedEquipmentEffects = [
+  "leg_echo_loop",
+  "leg_void_boots",
+  "leg_stable_lantern",
+  "leg_elite_hunter",
+  "leg_resource_wheel",
+  "leg_guardian_robes",
+  "leg_boss_bane",
+  "leg_cooldown_scroll",
+  "leg_status_sigil",
+  "leg_salvage_charm",
+  "leg_five_resist",
+  "leg_progress_charm",
+  "leg_sword_array_heart",
+  "leg_sword_banner_echo",
+  "leg_sword_mountain_scar",
+  "leg_sword_unbroken",
+  "leg_sword_soul_mark",
+  "leg_sword_charge_line",
+  "leg_sword_intent_core",
+  "leg_sword_low_hp",
+  "leg_sword_elite_shout",
+  "leg_sword_double_slash",
+  "leg_archer_return_arrow",
+  "leg_archer_poison_cloud",
+  "leg_archer_double_wolf",
+  "leg_archer_rain_echo",
+  "leg_archer_mark_hunt",
+  "leg_archer_shadow_guard",
+  "leg_archer_focus_quiver",
+  "leg_archer_trap_chain",
+  "leg_archer_boss_mark",
+  "leg_archer_arrow_fan",
+  "leg_mage_thunder_book",
+  "leg_mage_flame_field",
+  "leg_mage_frost_crack",
+  "leg_mage_mirror_gem",
+  "leg_mage_starfall_echo",
+  "leg_mage_ward_cycle",
+  "leg_mage_burn_return",
+  "leg_mage_frost_thunder",
+  "leg_mage_missile_storm",
+  "leg_mage_low_mana",
+  "season_relic_chixiao_pendant",
+  "season_relic_ember_ring",
+  "season_relic_fireseed_blade",
+  "season_relic_burning_banner",
+  "season_relic_ash_robe",
+  "season_relic_tribulation_crown",
+  "season_relic_void_ember_boots",
+  "season_relic_soul_burning_seal",
+  "season_relic_ember_wolf_charm",
+  "season_relic_thunder_ember_ring",
+  "season_relic_frost_ember_mirror",
+  "season_relic_final_oath",
+] as const;
+
 export function createCombatSession(options: {
   character: Character;
   inventory: Item[];
@@ -61,6 +118,8 @@ export function createCombatSession(options: {
     droppedItems: [],
     cooldowns: {},
     lastCastAt: {},
+    powerFlags: {},
+    powerCounters: {},
     progress: 0,
     emberValue: 0,
     emberHeat: 0,
@@ -88,7 +147,9 @@ export function tickCombat(session: CombatSession, deltaMs: number): CombatSessi
   const next = cloneSession(session);
   next.elapsedMs += deltaMs;
   next.spawnTimer -= deltaMs;
-  const resourcePerSecond = next.player.maxResource * 0.018 + next.effectiveStats.resourceRegen * 0.55;
+  const lowResourceWheel = hasEquippedPower(next, "leg_resource_wheel") && next.player.resource / next.player.maxResource < 0.3 ? 1.4 : 1;
+  const lowManaStarPlate = hasEquippedPower(next, "leg_mage_low_mana") && next.player.resource / next.player.maxResource < 0.25 ? 1.35 : 1;
+  const resourcePerSecond = (next.player.maxResource * 0.018 + next.effectiveStats.resourceRegen * 0.55) * lowResourceWheel * lowManaStarPlate;
   next.player.resource = clamp(next.player.resource + (resourcePerSecond * deltaMs) / 1000, 0, next.player.maxResource);
   updateStatusEffects(next, deltaMs);
   decayCooldowns(next, deltaMs);
@@ -231,7 +292,8 @@ function castPlayerSkill(session: CombatSession) {
   player.resource = clamp(player.resource - resourceCost + (skill.resourceGain ?? 0), 0, player.maxResource);
   recordCast(session, skill, resourceCost);
   if (skill.type === "defense" && skill.damageMultiplier === 0) {
-    const shield = player.maxHp * (skill.id === "mage_shield" ? 0.42 : 0.28);
+    let shield = player.maxHp * (skill.id === "mage_shield" ? 0.42 : 0.28);
+    if (skill.id === "warrior_shout" && hasEquippedPower(session, "leg_sword_unbroken")) shield *= 1.42;
     player.shield += shield;
     if (skill.resourceGain) float(session, player.position, skill.icon, `+${skill.resourceGain}`, "resource", skill.resourceGain);
     float(session, player.position, skill.icon, `+${Math.floor(shield)}`, "shield", shield);
@@ -246,6 +308,7 @@ function castPlayerSkill(session: CombatSession) {
       durationMs: 760,
     });
     recordShield(session, skill, shield);
+    if (hasEquippedPower(session, "leg_cooldown_scroll")) reduceRandomCooldown(session, (cooldownSkill) => cooldownSkill.type !== "defense", 0.2, "归息");
     return;
   }
   if (skill.type === "summon") {
@@ -260,15 +323,26 @@ function castPlayerSkill(session: CombatSession) {
   const targets =
     skill.id === "ranger_quickshot" && hasEquippedPower(session, "leg_archer_arrow_fan")
       ? chooseNearbyTargets(session, target, 4, 160)
+      : skill.id === "mage_chain_lightning" && hasEquippedPower(session, "leg_mage_thunder_book")
+        ? chooseNearbyTargets(session, target, 5, 190)
+        : skill.id === "mage_arcane_missiles" && hasEquippedPower(session, "leg_mage_missile_storm")
+          ? chooseNearbyTargets(session, target, 4, 150)
       : skill.tags.includes("aoe")
         ? session.monsters.filter((monster) => distance(monster.position, target?.position ?? player.position) <= (skill.radius ?? 120))
         : target
           ? [target]
           : [];
   const quickshotScale = skill.id === "ranger_quickshot" && hasEquippedPower(session, "leg_archer_arrow_fan") ? 0.78 : 1;
-  applySkillDamage(session, skill, targets, undefined, session.player.position, { damageScale: quickshotScale });
+  const missileScale = skill.id === "mage_arcane_missiles" && hasEquippedPower(session, "leg_mage_missile_storm") ? 0.72 : 1;
+  applySkillDamage(session, skill, targets, undefined, session.player.position, { damageScale: quickshotScale * missileScale });
   if (skill.id === "ranger_piercing_arrow" && hasEquippedPower(session, "leg_archer_return_arrow") && targets.length) {
     applySkillDamage(session, skill, targets, undefined, targets[0].position, { damageScale: 0.62, label: "返矢", skipStatus: true });
+  }
+  if (skill.id === "ranger_arrow_rain" && hasEquippedPower(session, "leg_archer_rain_echo") && targets.length) {
+    applySkillDamage(session, skill, targets, undefined, targets[0].position, { damageScale: 0.36, label: "余落", skipStatus: true });
+  }
+  if (skill.id === "mage_meteor" && hasEquippedPower(session, "leg_mage_starfall_echo") && targets.length && Math.random() < 0.45) {
+    applySkillDamage(session, skill, targets.slice(0, 4), undefined, targets[0].position, { damageScale: 0.42, label: "小星陨", skipStatus: true });
   }
 }
 
@@ -278,15 +352,18 @@ function applySkillDamage(
   targets: CombatActor[],
   sourceName?: string,
   sourcePosition = session.player.position,
-  options: { damageScale?: number; label?: string; skipStatus?: boolean } = {},
+  options: { damageScale?: number; label?: string; skipStatus?: boolean; triggeredByPower?: boolean } = {},
 ) {
   if (targets.length) addSkillEffect(session, skill, sourcePosition, targets[0].position, targets.length > 1 ? skill.radius : undefined);
   targets.forEach((monster) => {
+    const previousHp = monster.hp;
     const crit = Math.random() < getEffectiveCrit(session);
     const statusBonus =
       (monster.statusEffects.some((status) => status.id === "mark") && skill.classId === "ranger" ? 0.18 : 0) +
       (monster.statusEffects.some((status) => status.id === "mark") && monster.monsterType === "boss" && hasEquippedPower(session, "leg_archer_boss_mark") ? 0.18 : 0) +
       (monster.statusEffects.some((status) => status.id === "ember_burn") ? 0.08 : 0) +
+      (monster.statusEffects.some((status) => status.id === "ember_burn") && skill.type === "core" && hasEquippedPower(session, "season_relic_fireseed_blade") ? 0.18 : 0) +
+      (monster.statusEffects.some((status) => status.type === "control") && hasEquippedPower(session, "leg_status_sigil") ? 0.25 : 0) +
       (monster.statusEffects.some((status) => status.id === "shock") && skill.tags.includes("aoe") ? 0.12 : 0);
     const tagBonus =
       (skill.tags.includes("melee") ? getEffectiveDamageBonus(session, "meleeDamageBonus") : 0) +
@@ -295,17 +372,59 @@ function applySkillDamage(
       (skill.tags.includes("dot") ? getEffectiveDamageBonus(session, "dotDamageBonus") : 0) +
       (monster.monsterType === "elite" ? getEffectiveDamageBonus(session, "eliteDamageBonus") : 0) +
       (monster.monsterType === "boss" ? getEffectiveDamageBonus(session, "bossDamageBonus") : 0);
+    const powerBonus =
+      (monster.monsterType === "boss" && monster.hp / monster.maxHp <= 0.35 && hasEquippedPower(session, "leg_boss_bane") ? 0.25 : 0) +
+      (session.player.statusEffects.some((status) => status.id === "elite_hunter") && hasEquippedPower(session, "leg_elite_hunter") ? 0.2 : 0) +
+      (skill.classId === "warrior" && skill.type === "core" && hasEquippedPower(session, "leg_sword_intent_core") ? 0.12 : 0) +
+      (skill.classId === "warrior" && session.player.hp / session.player.maxHp <= 0.4 && hasEquippedPower(session, "leg_sword_low_hp") ? 0.25 : 0) +
+      (skill.classId === "mage" && skill.type === "basic" && session.player.resource / session.player.maxResource <= 0.25 && hasEquippedPower(session, "leg_mage_low_mana") ? 0.24 : 0) +
+      (hasEquippedPower(session, "season_relic_final_oath") ? (isFinalOathScene(session) ? 0.35 : 0.15) : 0);
     const rank = Math.max(1, session.character.skillRanks[skill.id] ?? 1);
     const base = session.player.attack * skill.damageMultiplier * (1 + (rank - 1) * 0.14) * (sourceName ? 0.55 : 1) * (options.damageScale ?? 1);
-    const damage = Math.max(1, base * (1 + getEffectiveDamageBonus(session, "damageBonus") + tagBonus + statusBonus) * (crit ? getEffectiveCritDamage(session) : 1) - monster.armor * 0.22);
+    const damage = Math.max(1, base * (1 + getEffectiveDamageBonus(session, "damageBonus") + tagBonus + statusBonus + powerBonus) * (crit ? getEffectiveCritDamage(session) : 1) - monster.armor * 0.22);
     monster.hp -= damage;
     if (monster.monsterType === "boss") session.emberValue += damage >= monster.maxHp * 0.1 ? emberMechanic.gains.bossTenPercentHp : emberMechanic.gains.bossTenPercentHp * 0.08;
     if (!options.skipStatus) applySkillStatuses(monster, skill, session);
+    applyBossRelicBrands(session, monster, previousHp);
     float(session, monster.position, skill.icon, `${options.label ?? ""}${crit ? "!" : ""}${Math.floor(damage)}`, crit ? "crit" : "damage", damage);
     recordHit(session, skill, damage, crit);
     if (crit && skill.classId === "ranger" && hasEquippedPower(session, "leg_archer_focus_quiver")) restoreResource(session, 8, "聚息");
     if (skill.id === "ranger_quickshot" && hasEquippedPower(session, "leg_archer_arrow_fan")) session.emberValue += 1.2;
+    if (skill.id === "warrior_slash" && hasEquippedPower(session, "leg_sword_double_slash") && !options.triggeredByPower && Math.random() < 0.32) {
+      restoreResource(session, 6, "双锋");
+      applySkillDamage(session, skill, [monster], sourceName, sourcePosition, { damageScale: 0.58, label: "双锋", skipStatus: true, triggeredByPower: true });
+    }
+    if (skill.id === "warrior_whirlwind" && hasEquippedPower(session, "leg_sword_array_heart")) {
+      session.powerCounters.swordArrayHeart = (session.powerCounters.swordArrayHeart ?? 0) + 1;
+      if (session.powerCounters.swordArrayHeart >= 8) {
+        session.powerCounters.swordArrayHeart = 0;
+        applyDirectDamage(session, monster, session.player.attack * 1.15, "剑", "剑心");
+      }
+    }
+    if (skill.id === "warrior_ground_slam" && hasEquippedPower(session, "leg_sword_mountain_scar")) {
+      addStatus(monster, createStatus("sword_scar", skill, session.player.attack * 0.45));
+    }
+    if (skill.id === "mage_fireblast" && hasEquippedPower(session, "leg_mage_flame_field")) {
+      addStatus(monster, createStatus("flame_field", skill, session.player.attack * 0.36));
+    }
+    if (skill.id === "mage_frost_ring" && hasEquippedPower(session, "leg_mage_frost_crack")) {
+      applyDirectDamage(session, monster, session.player.attack * 0.7, "冰", "冰裂", skill);
+    }
+    if (skill.id === "mage_chain_lightning" && hasEquippedPower(session, "leg_mage_frost_thunder") && monster.statusEffects.some((status) => status.id === "freeze")) {
+      damageMonstersAround(session, monster.position, 90, session.player.attack * 0.85, "雷", "霜雷", skill);
+    }
+    if (skill.tags.includes("lightning") && hasEquippedPower(session, "season_relic_thunder_ember_ring") && monster.statusEffects.some((status) => status.id === "ember_burn")) {
+      damageMonstersAround(session, monster.position, 80, session.player.attack * 0.62, "雷", "雷火", skill);
+    }
+    if (skill.id === "mage_arcane_missiles" && hasEquippedPower(session, "leg_mage_missile_storm")) restoreResource(session, 2, "飞符");
+    if (skill.id === "warrior_execute" && hasEquippedPower(session, "leg_sword_soul_mark") && previousHp > 0 && monster.hp <= 0) {
+      session.cooldowns[skill.id] = Math.max(0, (session.cooldowns[skill.id] ?? 0) * 0.65);
+      restoreResource(session, 12, "斩魄");
+    }
     if (sourceName) session.stats.summonDamage[sourceName] = (session.stats.summonDamage[sourceName] ?? 0) + damage;
+    if (!options.triggeredByPower && hasEquippedPower(session, "leg_echo_loop") && skill.damageMultiplier > 0 && Math.random() < 0.16) {
+      applySkillDamage(session, skill, [monster], sourceName, sourcePosition, { damageScale: 0.35, label: "回响", skipStatus: true, triggeredByPower: true });
+    }
   });
 }
 
@@ -353,6 +472,8 @@ function summonActor(session: CombatSession, skill: Skill) {
 function updateSummons(session: CombatSession, deltaMs: number) {
   session.summons.forEach((summon) => {
     summon.durationMs = (summon.durationMs ?? 0) - deltaMs;
+    if ((summon.durationMs ?? 0) <= 0) return;
+    if (summon.sourceSkillId === "ranger_shadow_step") return;
     summon.attackTimer -= deltaMs;
     const skill = getSkill(summon.sourceSkillId ?? "");
     if (!skill || summon.attackTimer > 0) return;
@@ -363,9 +484,13 @@ function updateSummons(session: CombatSession, deltaMs: number) {
     const targets = session.monsters.filter((monster) => distance(monster.position, summon.position) <= radius).slice(0, skill.id === "ranger_wolf" ? 1 : 5);
     if (targets.length) {
       summon.attackTimer = summon.attackCooldown;
-      applySkillDamage(session, skill, targets, summon.name, summon.position);
+      const damageSkill = summon.sourceSkillId === "mage_mirror" && hasEquippedPower(session, "leg_mage_mirror_gem") ? getSkill("mage_spark") ?? skill : skill;
+      applySkillDamage(session, damageSkill, targets, summon.name, summon.position);
       if (skill.id === "ranger_poison_trap" && hasEquippedPower(session, "leg_archer_poison_cloud")) {
         applySkillDamage(session, skill, targets, summon.name, summon.position, { damageScale: 0.42, label: "毒雾" });
+      }
+      if (skill.id === "ranger_poison_trap" && hasEquippedPower(session, "leg_archer_trap_chain") && Math.random() < 0.34) {
+        applySkillDamage(session, skill, targets, summon.name, summon.position, { damageScale: 0.5, label: "连环" });
       }
       if (hasEquippedPower(session, "season_relic_ember_wolf_charm") && targets.some((target) => target.statusEffects.some((status) => status.id === "ember_burn"))) {
         applySkillDamage(session, skill, targets, summon.name, summon.position, { damageScale: 0.35, label: "火狼", skipStatus: true });
@@ -378,6 +503,34 @@ function updateSummons(session: CombatSession, deltaMs: number) {
   });
 }
 
+function spawnShadowDecoy(session: CombatSession, position: Vector2, skill: Skill) {
+  session.summons = session.summons.filter((summon) => summon.sourceSkillId !== "ranger_shadow_step");
+  session.summons.push({
+    id: uid("decoy"),
+    name: "踏影影身",
+    type: "summon",
+    hp: session.player.maxHp * 0.28,
+    maxHp: session.player.maxHp * 0.28,
+    resource: 0,
+    maxResource: 0,
+    shield: session.player.maxHp * 0.08,
+    attack: 0,
+    armor: session.player.armor * 0.8,
+    level: session.player.level,
+    position: { ...position },
+    radius: 14,
+    speed: 0,
+    attackCooldown: 999999,
+    attackTimer: 999999,
+    ownerActorId: "player",
+    sourceSkillId: skill.id,
+    durationMs: 2300,
+    pulseTimer: 0,
+    statusEffects: [createStatus("summoned", skill, 0)],
+  });
+  float(session, position, "影", "影身", "shield", 0);
+}
+
 function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) {
   const angle = Math.random() * Math.PI * 2;
   const radius = ARENA / 2 + 30;
@@ -388,6 +541,7 @@ function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) 
   const template = pickMonsterTemplate(family, type);
   const hpBase = type === "boss" ? template.baseHp * 5 : type === "elite" ? template.baseHp * 2.6 : template.baseHp;
   const damageBase = type === "boss" ? template.baseDamage * 2.2 : type === "elite" ? template.baseDamage * 1.45 : template.baseDamage;
+  const progressCharmRisk = hasEquippedPower(session, "leg_progress_charm") ? 1.08 : 1;
   const eliteMarkNames = type === "elite" ? pickEliteMarks(tier) : [];
   const name = type === "boss" ? session.bossName : type === "elite" ? `${eliteMarkNames.map((mark) => mark.split("煞印")[0]).join("·")} ${template.name}` : template.name;
   const modifierRisk = (session.riftModifiers?.length ?? 0) * 0.04;
@@ -397,8 +551,8 @@ function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) 
     type: "monster",
     monsterType: type,
     eliteAffixes: type === "elite" ? eliteMarkNames : undefined,
-    hp: hpBase * localScale * scaling.hp * (1 + modifierRisk),
-    maxHp: hpBase * localScale * scaling.hp * (1 + modifierRisk),
+    hp: hpBase * localScale * scaling.hp * (1 + modifierRisk) * progressCharmRisk,
+    maxHp: hpBase * localScale * scaling.hp * (1 + modifierRisk) * progressCharmRisk,
     resource: 0,
     maxResource: 0,
     shield: type === "shieldBearer" ? hpBase * localScale * scaling.hp * 0.25 : 0,
@@ -412,6 +566,16 @@ function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) 
     attackTimer: 600,
     statusEffects: type === "elite" && name.includes("玄甲") ? [createStatus("hard_shell", undefined, 0)] : [],
   });
+  if (type === "elite" && hasEquippedPower(session, "leg_sword_elite_shout")) {
+    const shout = getSkill("warrior_shout");
+    const shield = session.player.maxHp * 0.18;
+    session.player.shield += shield;
+    if (shout) {
+      addStatus(session.player, createStatus("blood_shout", shout, 0));
+      recordShield(session, shout, shield);
+    }
+    float(session, session.player.position, "啸", `+${Math.floor(shield)}`, "shield", shield);
+  }
 }
 
 function pickMonsterTemplate(family: NonNullable<CombatActor["monsterType"]> extends never ? never : ReturnType<typeof getDungeon>["family"], type: CombatActor["monsterType"]) {
@@ -438,9 +602,16 @@ function pickEliteMarks(tier: number) {
 function maybeTriggerEmberJudgement(session: CombatSession) {
   if (session.emberValue < emberMechanic.maxEmberValue) return;
   session.emberValue -= emberMechanic.maxEmberValue;
+  if (hasEquippedPower(session, "season_relic_chixiao_pendant") && Math.random() < 0.2) {
+    session.emberValue = Math.max(session.emberValue, 25);
+    float(session, session.player.position, "佩", "留火", "resource", 25);
+  }
   session.emberHeat = Math.min(emberMechanic.heatCap, session.emberHeat + 1);
   const radius = emberMechanic.judgement.radius * (session.emberHeat >= 3 ? 1.1 : 1);
-  const damage = session.player.attack * emberMechanic.judgement.damageMultiplier * (1 + session.emberHeat * 0.1);
+  const frostBonus = session.player.statusEffects.some((status) => status.id === "frost_ember_focus") ? 0.35 : 0;
+  const oathBonus = hasEquippedPower(session, "season_relic_final_oath") ? (isFinalOathScene(session) ? 0.35 : 0.15) : 0;
+  const damage = session.player.attack * emberMechanic.judgement.damageMultiplier * (1 + session.emberHeat * 0.1 + frostBonus + oathBonus);
+  session.player.statusEffects = session.player.statusEffects.filter((status) => status.id !== "frost_ember_focus");
   const targets = session.monsters.filter((monster) => distance(monster.position, session.player.position) <= radius);
   targets.forEach((monster) => {
     monster.hp -= damage;
@@ -448,6 +619,9 @@ function maybeTriggerEmberJudgement(session: CombatSession) {
     float(session, monster.position, "火", `${Math.floor(damage)}`, "crit", damage);
   });
   session.stats.totalDamage += damage * targets.length;
+  if (hasEquippedPower(session, "season_relic_burning_banner")) {
+    damageMonstersAround(session, session.player.position, radius * 0.72, session.player.attack * 1.45, "旗", "焚旗");
+  }
   addEffect(session, {
     kind: "ring",
     from: session.player.position,
@@ -468,11 +642,18 @@ function updateStatusEffects(session: CombatSession, deltaMs: number) {
       status.tickTimerMs = (status.tickTimerMs ?? status.tickIntervalMs) - deltaMs;
       if (status.tickTimerMs > 0) return;
       status.tickTimerMs += status.tickIntervalMs;
-      actor.hp -= status.damagePerTick;
-      float(session, actor.position, status.name[0] ?? "", `${Math.floor(status.damagePerTick)}`, "damage", status.damagePerTick);
+      const resistFactor = actor.type !== "monster" && hasEquippedPower(session, "leg_five_resist") ? 0.88 : 1;
+      const tickDamage = status.damagePerTick * resistFactor;
+      actor.hp -= tickDamage;
+      float(session, actor.position, status.name[0] ?? "", `${Math.floor(tickDamage)}`, "damage", tickDamage);
       const sourceSkill = status.sourceSkillId ? getSkill(status.sourceSkillId) : undefined;
-      if (sourceSkill) recordHit(session, sourceSkill, status.damagePerTick, false);
+      if (sourceSkill) recordHit(session, sourceSkill, tickDamage, false);
     });
+    if (actor.type === "monster" && hasEquippedPower(session, "leg_status_sigil")) {
+      actor.statusEffects
+        .filter((status) => status.type === "control" && status.remainingMs <= 0)
+        .forEach(() => applyDirectDamage(session, actor, session.player.attack * 0.55, "印", "镇魂"));
+    }
     actor.statusEffects = actor.statusEffects.filter((status) => status.remainingMs > 0);
   });
 }
@@ -491,7 +672,8 @@ function movePlayer(session: CombatSession, deltaMs: number) {
     : nearest.position;
   const targetDistance = distance(player.position, target.position);
   const nearestDistance = distance(player.position, nearest.position);
-  const preferred = movement.preferredRange;
+  const attackRange = getPreferredCombatRange(session);
+  const preferred = attackRange.ideal;
   const bossThreat = session.monsters.find((monster) => monster.monsterType === "boss");
   const pinnedByBoss = Boolean(bossThreat && nearestDistance < preferred * 1.05 && isNearWall(player.position, PLAYER_EDGE_MARGIN + 18));
   let desired: Vector2 | undefined;
@@ -510,11 +692,11 @@ function movePlayer(session: CombatSession, deltaMs: number) {
     if (pinnedByBoss) {
       desired = kiteEscapePoint(player.position, bossThreat!.position, dangerCenter, 170);
       reason = "orbit";
-    } else if (nearestDistance < preferred * 0.82 || nearbyThreats.length >= 3) {
+    } else if (nearestDistance < preferred * 0.78 || nearbyThreats.length >= 3) {
       desired = kiteEscapePoint(player.position, nearest.position, dangerCenter, 135);
       reason = isNearWall(player.position, PLAYER_EDGE_MARGIN) ? "orbit" : "retreat";
-    } else if (targetDistance > preferred * 1.45 && nearestDistance > preferred * 0.98) {
-      desired = target.position;
+    } else if (targetDistance > attackRange.max + 24 && nearestDistance > preferred * 0.92) {
+      desired = pointAtRangeFromTarget(player.position, target.position, preferred);
       reason = "advance";
     }
   } else if (movement.strategy === "keepMediumRange") {
@@ -524,12 +706,12 @@ function movePlayer(session: CombatSession, deltaMs: number) {
     } else if (nearestDistance < preferred * 0.68) {
       desired = kiteEscapePoint(player.position, nearest.position, dangerCenter, 105);
       reason = isNearWall(player.position, PLAYER_EDGE_MARGIN) ? "orbit" : "retreat";
-    } else if (targetDistance > preferred * 1.3 && nearestDistance > preferred * 0.9) {
-      desired = target.position;
+    } else if (targetDistance > attackRange.max + 18 && nearestDistance > preferred * 0.86) {
+      desired = pointAtRangeFromTarget(player.position, target.position, preferred);
       reason = "advance";
     }
   } else if (movement.strategy === "chaseElite") {
-    if (targetDistance > preferred) desired = target.position;
+    if (targetDistance > preferred) desired = pointAtRangeFromTarget(player.position, target.position, preferred);
     else if (nearestDistance < 42) desired = kiteEscapePoint(player.position, nearest.position, dangerCenter, 58);
     reason = targetDistance > preferred ? "advance" : "retreat";
   }
@@ -560,8 +742,13 @@ function performMobilitySkill(session: CombatSession, skill: Skill, target?: Com
   const before = { ...player.position };
   moveToward(player, destination, 1000, 0);
   addStatus(player, createStatus("moving_flow", skill, 0));
+  if (skill.id === "warrior_charge" && hasEquippedPower(session, "leg_sword_charge_line")) {
+    damageMonstersAround(session, before, 92, session.player.attack * 0.72, "剑", "长虹", skill);
+    damageMonstersAround(session, player.position, 92, session.player.attack * 0.72, "剑", "长虹", skill);
+  }
   if (skill.id === "ranger_shadow_step") addStatus(player, createStatus("shadow_step_guard", skill, 0));
   if (hasEquippedPower(session, "leg_archer_shadow_guard")) {
+    spawnShadowDecoy(session, before, skill);
     addEffect(session, {
       kind: "ring",
       from: before,
@@ -572,7 +759,7 @@ function performMobilitySkill(session: CombatSession, skill: Skill, target?: Com
       durationMs: 1800,
     });
     session.monsters.forEach((monster) => {
-      if (distance(monster.position, before) <= 120) addStatus(monster, createStatus("shadow_decoy", skill, 0));
+      if (distance(monster.position, before) <= 320) addStatus(monster, createStatus("shadow_decoy", skill, 0));
     });
   }
   if (hasEquippedPower(session, "season_relic_void_ember_boots")) burnTrail(session, before);
@@ -580,17 +767,22 @@ function performMobilitySkill(session: CombatSession, skill: Skill, target?: Com
 }
 
 function moveMonsters(session: CombatSession, deltaMs: number) {
+  const decoy = getShadowDecoy(session);
   session.monsters.forEach((monster) => {
     if (monster.statusEffects.some((status) => status.id === "freeze" || status.id === "stun")) return;
+    const chasingDecoy = Boolean(decoy && monster.statusEffects.some((status) => status.id === "shadow_decoy"));
+    const targetPosition = chasingDecoy ? decoy!.position : session.player.position;
     const desiredRange =
-      monster.monsterType === "ranged" || monster.monsterType === "healer" || monster.monsterType === "summoner"
+      chasingDecoy
+        ? monster.radius + decoy!.radius + 10
+        : monster.monsterType === "ranged" || monster.monsterType === "healer" || monster.monsterType === "summoner"
         ? 190
         : monster.monsterType === "boss"
           ? 92
           : monster.radius + session.player.radius + 16;
-    if (distance(monster.position, session.player.position) <= desiredRange) return;
-    const controlFactor = monster.statusEffects.some((status) => status.id === "shadow_decoy") ? 0.45 : 1;
-    moveToward(monster, session.player.position, deltaMs * controlFactor, desiredRange);
+    if (distance(monster.position, targetPosition) <= desiredRange) return;
+    const controlFactor = chasingDecoy ? 0.82 : 1;
+    moveToward(monster, targetPosition, deltaMs * controlFactor, desiredRange);
   });
 }
 
@@ -617,24 +809,35 @@ function separateCombatants(session: CombatSession) {
 }
 
 function resolveMonsterAttacks(session: CombatSession, deltaMs: number) {
+  const decoy = getShadowDecoy(session);
   session.monsters.forEach((monster) => {
     monster.attackTimer -= deltaMs;
+    const targetActor = decoy && monster.statusEffects.some((status) => status.id === "shadow_decoy") ? decoy : session.player;
     const range =
       monster.monsterType === "ranged" || monster.monsterType === "healer" || monster.monsterType === "summoner"
         ? 210
         : monster.monsterType === "boss"
           ? 104
-          : monster.radius + session.player.radius + 12;
-    if (monster.attackTimer <= 0 && distance(monster.position, session.player.position) <= range) {
+          : monster.radius + targetActor.radius + 12;
+    if (monster.attackTimer <= 0 && distance(monster.position, targetActor.position) <= range) {
       monster.attackTimer = monster.attackCooldown;
+      if (targetActor !== session.player) {
+        const summonReduction = hasEquippedPower(session, "leg_guardian_robes") ? 0.8 : 1;
+        const damage = Math.max(1, (monster.attack - targetActor.armor * 0.12) * summonReduction);
+        targetActor.hp -= damage;
+        float(session, targetActor.position, "影", `-${Math.floor(damage)}`, "shield", damage);
+        return;
+      }
       const guardianReduction = hasEquippedPower(session, "leg_guardian_robes") && session.summons.length ? 0.9 : 1;
       const movingReduction = session.player.statusEffects.some((status) => status.id === "moving_flow") && hasEquippedPower(session, "leg_void_boots") ? 0.85 : 1;
       const shadowReduction = session.player.statusEffects.some((status) => status.id === "shadow_step_guard") ? 0.82 : 1;
-      const damage = Math.max(1, (monster.attack - session.player.armor * 0.16) * guardianReduction * movingReduction * shadowReduction);
+      const lowHpReduction = hasEquippedPower(session, "leg_sword_low_hp") && session.player.hp / session.player.maxHp <= 0.4 ? 0.9 : 1;
+      const damage = Math.max(1, (monster.attack - session.player.armor * 0.16) * guardianReduction * movingReduction * shadowReduction * lowHpReduction);
       const absorbed = Math.min(session.player.shield, damage);
       session.player.shield -= absorbed;
-      session.player.hp -= damage - absorbed;
-      session.stats.damageTaken += damage - absorbed;
+      const hpDamage = preventFatalDamage(session, damage - absorbed);
+      session.player.hp -= hpDamage;
+      session.stats.damageTaken += hpDamage;
       session.stats.shieldAbsorbed += absorbed;
       float(session, session.player.position, "", `-${Math.floor(damage)}`, "damage", damage);
     }
@@ -642,12 +845,17 @@ function resolveMonsterAttacks(session: CombatSession, deltaMs: number) {
 }
 
 function cleanup(session: CombatSession) {
+  handleExpiredSummonEffects(session);
   session.monsters = session.monsters.filter((monster) => {
     if (monster.hp > 0) return true;
     rollMonsterDrop(session, monster);
     session.kills += 1;
-    const progressValue = monster.monsterType === "boss" ? 0 : monster.monsterType === "elite" ? 8 : monster.monsterType === "ranged" || monster.monsterType === "summoner" || monster.monsterType === "healer" ? 3 : 2.4;
-    if (monster.monsterType === "elite") session.eliteKills += 1;
+    const baseProgress = monster.monsterType === "boss" ? 0 : monster.monsterType === "elite" ? 8 : monster.monsterType === "ranged" || monster.monsterType === "summoner" || monster.monsterType === "healer" ? 3 : 2.4;
+    const progressValue = baseProgress * (hasEquippedPower(session, "leg_progress_charm") ? 1.1 : 1);
+    if (monster.monsterType === "elite") {
+      session.eliteKills += 1;
+      if (hasEquippedPower(session, "leg_elite_hunter")) addStatus(session.player, createStatus("elite_hunter", undefined, 0));
+    }
     if (monster.monsterType !== "boss") session.progress = clamp(session.progress + progressValue, 0, 100);
     if (monster.monsterType === "elite") session.emberValue += emberMechanic.gains.eliteKill;
     else if (monster.monsterType !== "boss") session.emberValue += monster.monsterType === "ranged" || monster.monsterType === "summoner" || monster.monsterType === "healer" ? emberMechanic.gains.specialKill : emberMechanic.gains.trashKill;
@@ -657,6 +865,15 @@ function cleanup(session: CombatSession) {
       session.player.hp = clamp(session.player.hp + healing, 0, session.player.maxHp);
       session.stats.totalHealing += healing;
       float(session, session.player.position, "戒", `+${Math.floor(healing)}`, "heal", healing);
+    }
+    if (monster.statusEffects.some((status) => status.id === "mark") && hasEquippedPower(session, "leg_archer_mark_hunt")) {
+      const nextTarget = session.monsters.find((candidate) => candidate.id !== monster.id && candidate.hp > 0);
+      const quickshot = getSkill("ranger_quickshot");
+      if (nextTarget && quickshot) addStatus(nextTarget, createStatus("mark", quickshot, 0));
+    }
+    if (monster.statusEffects.some((status) => status.id === "burn" || status.id === "flame_field") && hasEquippedPower(session, "leg_mage_burn_return")) {
+      restoreResource(session, 10, "焚魂");
+      session.cooldowns.mage_fireblast = Math.max(0, (session.cooldowns.mage_fireblast ?? 0) - 900);
     }
     return false;
   });
@@ -694,6 +911,7 @@ function rollMonsterDrop(session: CombatSession, monster: CombatActor) {
 function applySkillStatuses(target: CombatActor, skill: Skill, session: CombatSession) {
   skill.statusEffectIds?.forEach((statusId) => addStatus(target, createStatus(statusId, skill, session.player.attack * 0.35)));
   if (skill.tags.includes("lightning")) addStatus(target, createStatus("shock", skill, 0));
+  if (skill.tags.includes("ice") && hasEquippedPower(session, "season_relic_frost_ember_mirror")) addStatus(session.player, createStatus("frost_ember_focus", skill, 0));
   if (skill.id === "ranger_quickshot" && Math.random() > 0.65) addStatus(target, createStatus("mark", skill, 0));
 }
 
@@ -722,6 +940,10 @@ function createStatus(id: string, skill?: Skill, damageSeed = 0): CombatStatusEf
   if (id === "stun") return { ...base, name: "眩晕", type: "control", description: "短时间无法攻击。", durationMs: 1100, remainingMs: 1100 };
   if (id === "shock") return { ...base, name: "感电", type: "debuff", description: "受到雷电和范围伤害提高。", durationMs: 3600, remainingMs: 3600 };
   if (id === "mark") return { ...base, name: "灵识标记", type: "mark", description: "灵弓会优先攻击，受到灵弓伤害提高。", durationMs: 6000, remainingMs: 6000 };
+  if (id === "sword_scar") return { ...base, name: "裂岳剑痕", type: "dot", description: "剑痕留地，持续割裂敌人。", durationMs: 4000, remainingMs: 4000, tickIntervalMs: 800, tickTimerMs: 800, damagePerTick: Math.max(2, damageSeed) };
+  if (id === "flame_field") return { ...base, name: "劫焰残域", type: "dot", description: "火符余烬在地脉中继续燃烧。", durationMs: 4200, remainingMs: 4200, tickIntervalMs: 900, tickTimerMs: 900, damagePerTick: Math.max(2, damageSeed) };
+  if (id === "elite_hunter") return { ...base, name: "猎煞余威", type: "buff", description: "刚斩煞将，杀意未散。", durationMs: 12000, remainingMs: 12000 };
+  if (id === "frost_ember_focus") return { ...base, name: "冰火玄照", type: "buff", description: "玄冰照见劫火，下一次裁决更烈。", durationMs: 9000, remainingMs: 9000 };
   if (id === "moving_flow") return { ...base, name: "流风步", type: "buff", description: "正在移动，移动类法宝可借势生效。", durationMs: 650, remainingMs: 650 };
   if (id === "shadow_step_guard") return { ...base, name: "踏影护身", type: "buff", description: "踏影后短暂降低受到的伤害。", durationMs: 3000, remainingMs: 3000 };
   if (id === "shadow_decoy") return { ...base, name: "影身牵制", type: "debuff", description: "被影身扰乱，行动节奏下降。", durationMs: 2000, remainingMs: 2000 };
@@ -741,8 +963,9 @@ function chooseTarget(session: CombatSession, from = session.player.position) {
 }
 
 function decayCooldowns(session: CombatSession, deltaMs: number) {
+  const wardCycle = session.player.statusEffects.some((status) => status.id === "element_shield") && hasEquippedPower(session, "leg_mage_ward_cycle") ? 1.15 : 1;
   Object.keys(session.cooldowns).forEach((key) => {
-    session.cooldowns[key] = Math.max(0, session.cooldowns[key] - deltaMs);
+    session.cooldowns[key] = Math.max(0, session.cooldowns[key] - deltaMs * wardCycle);
   });
 }
 
@@ -871,6 +1094,87 @@ function burnTrail(session: CombatSession, position: Vector2) {
   });
 }
 
+function applyDirectDamage(session: CombatSession, monster: CombatActor, damage: number, icon: string, label: string, skill?: Skill) {
+  if (monster.hp <= 0) return;
+  monster.hp -= damage;
+  float(session, monster.position, icon, `${label}${Math.floor(damage)}`, "damage", damage);
+  if (skill) recordHit(session, skill, damage, false);
+  else session.stats.totalDamage += damage;
+}
+
+function damageMonstersAround(session: CombatSession, center: Vector2, radius: number, damage: number, icon: string, label: string, skill?: Skill) {
+  const targets = session.monsters.filter((monster) => monster.hp > 0 && distance(monster.position, center) <= radius);
+  targets.forEach((monster) => applyDirectDamage(session, monster, damage, icon, label, skill));
+  if (!targets.length) return;
+  addEffect(session, {
+    kind: "ring",
+    from: center,
+    to: center,
+    color: icon === "雷" ? "#facc15" : icon === "冰" ? "#38bdf8" : icon === "旗" ? "#fb923c" : "#f97316",
+    radius,
+    width: 3,
+    durationMs: 620,
+  });
+}
+
+function applyBossRelicBrands(session: CombatSession, monster: CombatActor, previousHp: number) {
+  if (monster.monsterType !== "boss" || !hasEquippedPower(session, "season_relic_soul_burning_seal")) return;
+  const before = previousHp / monster.maxHp;
+  const after = monster.hp / monster.maxHp;
+  [0.8, 0.6, 0.4, 0.2].forEach((threshold) => {
+    const key = `soulBurningSeal${Math.floor(threshold * 100)}`;
+    if (session.powerFlags[key] || before <= threshold || after > threshold) return;
+    session.powerFlags[key] = true;
+    addStatus(monster, createStatus("ember_burn", undefined, session.player.attack * emberMechanic.burnStatus.tickDamageMultiplier));
+    float(session, monster.position, "印", "焚魂", "crit", 0);
+  });
+}
+
+function preventFatalDamage(session: CombatSession, incoming: number) {
+  if (incoming <= 0 || session.player.hp - incoming > 0) return incoming;
+  if (hasEquippedPower(session, "season_relic_ash_robe") && session.emberValue > 0) {
+    const emberSpent = Math.min(100, session.emberValue);
+    session.emberValue -= emberSpent;
+    const heal = session.player.maxHp * clamp(emberSpent / 100, 0.12, 0.55);
+    session.player.hp = clamp(heal, 1, session.player.maxHp);
+    session.stats.totalHealing += heal;
+    float(session, session.player.position, "袍", `+${Math.floor(heal)}`, "heal", heal);
+    return 0;
+  }
+  if (hasEquippedPower(session, "leg_stable_lantern") && !session.powerFlags.stableLanternUsed) {
+    session.powerFlags.stableLanternUsed = true;
+    const heal = session.player.maxHp * 0.3;
+    session.player.hp = heal;
+    session.stats.totalHealing += heal;
+    float(session, session.player.position, "灯", `+${Math.floor(heal)}`, "heal", heal);
+    return 0;
+  }
+  return incoming;
+}
+
+function handleExpiredSummonEffects(session: CombatSession) {
+  session.summons
+    .filter((summon) => (summon.durationMs ?? 0) <= 0 && summon.sourceSkillId === "warrior_banner" && hasEquippedPower(session, "leg_sword_banner_echo"))
+    .forEach((summon) => {
+      const skill = getSkill("warrior_banner");
+      damageMonstersAround(session, summon.position, 160, session.player.attack * 1.25, "旗", "余威", skill);
+    });
+}
+
+function reduceRandomCooldown(session: CombatSession, predicate: (skill: Skill) => boolean, ratio: number, label: string) {
+  const candidates = Object.entries(session.cooldowns)
+    .map(([skillId, remaining]) => ({ skill: getSkill(skillId), remaining }))
+    .filter((entry): entry is { skill: Skill; remaining: number } => Boolean(entry.skill) && entry.remaining > 0 && predicate(entry.skill!));
+  const target = candidates.length ? pick(candidates) : undefined;
+  if (!target) return;
+  session.cooldowns[target.skill.id] = Math.max(0, target.remaining * (1 - ratio));
+  float(session, session.player.position, "息", label, "resource", target.remaining * ratio);
+}
+
+function isFinalOathScene(session: CombatSession) {
+  return session.bossName.includes("赤霄旧祖") || session.contentName.includes("赤霄遗址");
+}
+
 function averagePosition(points: Vector2[]) {
   return {
     x: points.reduce((sum, point) => sum + point.x, 0) / Math.max(1, points.length),
@@ -885,6 +1189,16 @@ function pointAway(from: Vector2, threat: Vector2, distanceValue: number) {
   return {
     x: clamp(from.x + (dx / length) * distanceValue, 24, ARENA - 24),
     y: clamp(from.y + (dy / length) * distanceValue, 24, ARENA - 24),
+  };
+}
+
+function pointAtRangeFromTarget(current: Vector2, target: Vector2, range: number) {
+  const dx = current.x - target.x;
+  const dy = current.y - target.y;
+  const length = Math.hypot(dx, dy) || 1;
+  return {
+    x: clamp(target.x + (dx / length) * range, 28, ARENA - 28),
+    y: clamp(target.y + (dy / length) * range, 28, ARENA - 28),
   };
 }
 
@@ -940,6 +1254,25 @@ function isNearWall(point: Vector2, margin: number) {
 
 function wouldHitWall(point: Vector2, margin: number) {
   return point.x <= margin || point.x >= ARENA - margin || point.y <= margin || point.y >= ARENA - margin;
+}
+
+function getPreferredCombatRange(session: CombatSession) {
+  const equippedSkills = session.character.skillLoadout.skillIds
+    .slice(0, 5)
+    .map((id) => getSkill(id))
+    .filter((skill): skill is Skill => skill !== undefined && skill.range > 0 && skill.type !== "mobility");
+  const rangedSkills = equippedSkills.filter((skill) => skill.tags.includes("ranged"));
+  const relevantSkills = rangedSkills.length ? rangedSkills : equippedSkills;
+  const maxRange = relevantSkills.length ? Math.max(...relevantSkills.map((skill) => skill.range)) : session.character.movement.preferredRange;
+  if (session.character.classId === "warrior") {
+    return { ideal: session.character.movement.preferredRange, max: Math.max(maxRange, session.character.movement.preferredRange + 20) };
+  }
+  const ideal = clamp(maxRange * 0.88, session.character.classId === "ranger" ? 235 : 185, maxRange - 12);
+  return { ideal, max: maxRange };
+}
+
+function getShadowDecoy(session: CombatSession) {
+  return session.summons.find((summon) => summon.sourceSkillId === "ranger_shadow_step" && summon.hp > 0 && (summon.durationMs ?? 0) > 0);
 }
 
 function getMonsterMoveSpeed(type: CombatActor["monsterType"], templateSpeed: number) {
@@ -1097,6 +1430,8 @@ function cloneSession(session: CombatSession): CombatSession {
     equippedPowerIds: [...session.equippedPowerIds],
     cooldowns: { ...session.cooldowns },
     lastCastAt: { ...session.lastCastAt },
+    powerFlags: { ...session.powerFlags },
+    powerCounters: { ...session.powerCounters },
     milestones: { ...session.milestones },
     riftModifiers: session.riftModifiers ? [...session.riftModifiers] : undefined,
     stats: {

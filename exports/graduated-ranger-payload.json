@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
-  "exportedAt": 1779357545076,
+  "exportedAt": 1779359522842,
   "character": {
-    "id": "char_grad_ranger_mq3arkt_mpfbjgqc",
+    "id": "char_grad_ranger_ii3k22y_mpfcpusa",
     "name": "赤霄穿云 · 毕业灵弓",
     "classId": "ranger",
     "seasonId": "dao_era_1_ember_tribulation",
@@ -39,22 +39,22 @@
       "shieldBonus": 0
     },
     "equipment": {
-      "weapon": "item_weapon_vzowj3z_mpfbjgqc",
-      "offhand": "item_offhand_fkb6gfi_mpfbjgqc",
-      "helmet": "item_helmet_j2xqx9l_mpfbjgqc",
-      "chest": "item_chest_cs4qj0b_mpfbjgqc",
-      "gloves": "item_gloves_b305cms_mpfbjgqc",
-      "pants": "item_pants_25cnosa_mpfbjgqc",
-      "boots": "item_boots_yf0xv04_mpfbjgqc",
-      "amulet": "item_amulet_9w03izl_mpfbjgqc",
-      "ring1": "item_ring1_j7gk67g_mpfbjgqc",
-      "ring2": "item_ring2_pf7hvq2_mpfbjgqc"
+      "weapon": "item_weapon_4d3pc9s_mpfcpusa",
+      "offhand": "item_offhand_a9n1a2u_mpfcpusa",
+      "helmet": "item_helmet_iq5isl5_mpfcpusa",
+      "chest": "item_chest_vvjp1dx_mpfcpusa",
+      "gloves": "item_gloves_e4sobou_mpfcpusa",
+      "pants": "item_pants_vqlogdq_mpfcpusa",
+      "boots": "item_boots_me05s2s_mpfcpusa",
+      "amulet": "item_amulet_zmtquh7_mpfcpusa",
+      "ring1": "item_ring1_tga76pa_mpfcpusa",
+      "ring2": "item_ring2_usvzvxy_mpfcpusa"
     },
     "skillLoadout": {
       "skillIds": [
         "ranger_quickshot",
         "ranger_piercing_arrow",
-        "ranger_poison_trap",
+        "ranger_shadow_step",
         "ranger_arrow_rain",
         "ranger_wolf"
       ],
@@ -93,6 +93,26 @@
             ],
             "minIntervalMs": 18000,
             "reserveForBoss": true
+          },
+          {
+            "skillId": "ranger_shadow_step",
+            "enabled": true,
+            "priority": 92,
+            "mode": "auto",
+            "conditionGroups": [
+              {
+                "logic": "AND",
+                "conditions": [
+                  {
+                    "type": "enemyCountNearby",
+                    "operator": ">=",
+                    "value": 1,
+                    "radius": 260
+                  }
+                ]
+              }
+            ],
+            "minIntervalMs": 10000
           },
           {
             "skillId": "ranger_arrow_rain",
@@ -210,8 +230,8 @@
     },
     "inventory": [
       {
-        "id": "item_weapon_vzowj3z_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_weapon_4d3pc9s_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "天阶法宝 · 千羽弓",
         "baseName": "千羽弓",
         "rarity": "legendary",
@@ -287,7 +307,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "legendaryPower": {
           "id": "leg_archer_arrow_fan",
           "name": "千羽弓",
@@ -303,8 +323,8 @@
         }
       },
       {
-        "id": "item_offhand_fkb6gfi_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_offhand_a9n1a2u_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "天阶法宝 · 聚息箭囊",
         "baseName": "聚息箭囊",
         "rarity": "legendary",
@@ -380,7 +400,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "legendaryPower": {
           "id": "leg_archer_focus_quiver",
           "name": "聚息箭囊",
@@ -396,8 +416,8 @@
         }
       },
       {
-        "id": "item_helmet_j2xqx9l_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_helmet_iq5isl5_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "道纪遗宝 · 劫火道冠",
         "baseName": "劫火道冠",
         "rarity": "seasonalUnique",
@@ -477,7 +497,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "seasonalPower": {
           "id": "season_relic_tribulation_crown",
           "name": "劫火道冠",
@@ -493,8 +513,8 @@
         }
       },
       {
-        "id": "item_chest_cs4qj0b_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_chest_vvjp1dx_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "天阶法宝 · 守御法袍",
         "baseName": "守御法袍",
         "rarity": "legendary",
@@ -574,7 +594,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "legendaryPower": {
           "id": "leg_guardian_robes",
           "name": "守御法袍",
@@ -590,8 +610,8 @@
         }
       },
       {
-        "id": "item_gloves_b305cms_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_gloves_e4sobou_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "天阶法宝 · 毒藤残阵",
         "baseName": "毒藤残阵",
         "rarity": "legendary",
@@ -667,7 +687,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "legendaryPower": {
           "id": "leg_archer_poison_cloud",
           "name": "毒藤残阵",
@@ -683,8 +703,8 @@
         }
       },
       {
-        "id": "item_pants_25cnosa_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_pants_vqlogdq_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "地阶法器 · 五行下裳之护命",
         "baseName": "下裳",
         "rarity": "epic",
@@ -764,11 +784,11 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076
+        "createdAt": 1779359522842
       },
       {
-        "id": "item_boots_yf0xv04_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_boots_me05s2s_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "天阶法宝 · 踏影护符",
         "baseName": "踏影护符",
         "rarity": "legendary",
@@ -848,7 +868,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "legendaryPower": {
           "id": "leg_archer_shadow_guard",
           "name": "踏影护符",
@@ -864,8 +884,8 @@
         }
       },
       {
-        "id": "item_amulet_9w03izl_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_amulet_zmtquh7_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "道纪遗宝 · 火狼灵符",
         "baseName": "火狼灵符",
         "rarity": "seasonalUnique",
@@ -943,7 +963,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "seasonalPower": {
           "id": "season_relic_ember_wolf_charm",
           "name": "火狼灵符",
@@ -959,8 +979,8 @@
         }
       },
       {
-        "id": "item_ring1_j7gk67g_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_ring1_tga76pa_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "天阶法宝 · 劫主猎令",
         "baseName": "劫主猎令",
         "rarity": "legendary",
@@ -1036,7 +1056,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "legendaryPower": {
           "id": "leg_archer_boss_mark",
           "name": "劫主猎令",
@@ -1052,8 +1072,8 @@
         }
       },
       {
-        "id": "item_ring2_pf7hvq2_mpfbjgqc",
-        "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+        "id": "item_ring2_usvzvxy_mpfcpusa",
+        "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
         "name": "道纪遗宝 · 劫火归元戒",
         "baseName": "劫火归元戒",
         "rarity": "seasonalUnique",
@@ -1130,7 +1150,7 @@
           }
         ],
         "upgradeLevel": 10,
-        "createdAt": 1779357545076,
+        "createdAt": 1779359522842,
         "seasonalPower": {
           "id": "season_relic_ember_ring",
           "name": "劫火归元戒",
@@ -1366,14 +1386,14 @@
     ],
     "highestRiftTier": 120,
     "stableIdleRiftTier": 118,
-    "createdAt": 1779357545076,
+    "createdAt": 1779359522842,
     "totalPlayTimeSeconds": 4838400,
     "totalIdleSeconds": 1555200
   },
   "reports": [
     {
-      "id": "report_grad_asm8xws_mpfbjgqc",
-      "characterId": "char_grad_ranger_mq3arkt_mpfbjgqc",
+      "id": "report_grad_44iahvm_mpfcpusa",
+      "characterId": "char_grad_ranger_ii3k22y_mpfcpusa",
       "contentName": "归墟天阶",
       "riftTier": 120,
       "result": "success",
@@ -1397,13 +1417,13 @@
           "star_sand": 28
         },
         "itemIds": [
-          "item_weapon_vzowj3z_mpfbjgqc",
-          "item_offhand_fkb6gfi_mpfbjgqc",
-          "item_helmet_j2xqx9l_mpfbjgqc"
+          "item_weapon_4d3pc9s_mpfcpusa",
+          "item_offhand_a9n1a2u_mpfcpusa",
+          "item_helmet_iq5isl5_mpfcpusa"
         ],
         "salvagedCount": 18
       },
-      "createdAt": 1779357545076
+      "createdAt": 1779359522842
     }
   ]
 }

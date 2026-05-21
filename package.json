@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "check:copy": "node scripts/check-player-facing-copy.mjs",
-    "build": "pnpm run check:copy && tsc && vite build",
+    "check:equipment-effects": "node scripts/check-equipment-effects.mjs",
+    "build": "pnpm run check:copy && pnpm run check:equipment-effects && tsc && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

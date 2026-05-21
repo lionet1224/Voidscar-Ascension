@@ -1046,12 +1046,93 @@ p {
 
 .battle-canvas {
   width: min(100%, 560px);
-  max-height: calc(100dvh - 184px);
+  max-height: calc(100dvh - 260px);
   aspect-ratio: 1;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #f8fafc;
   align-self: start;
+}
+
+.skill-cooldown-empty {
+  max-width: 560px;
+}
+
+.skill-cooldown-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(72px, 1fr));
+  gap: 8px;
+  max-width: 560px;
+}
+
+.skill-cooldown {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.skill-cooldown-icon {
+  display: grid;
+  grid-row: span 2;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  background: conic-gradient(#2563eb var(--cooldown-deg, 360deg), #e2e8f0 0deg);
+  font-size: 18px;
+}
+
+.skill-cooldown-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #334155;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.skill-cooldown strong {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.skill-cooldown > i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: #2563eb;
+  transform: scaleX(var(--cooldown-scale, 1));
+  transform-origin: left;
+}
+
+.skill-cooldown.ready {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.skill-cooldown.ready .skill-cooldown-icon {
+  background: #bbf7d0;
+}
+
+.skill-cooldown.casting {
+  border-color: #fdba74;
+  background: #fff7ed;
+  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.12);
+}
+
+.skill-cooldown.casting .skill-cooldown-icon {
+  background: #fed7aa;
 }
 
 .segmented {
@@ -1942,6 +2023,10 @@ p {
   .item-card,
   .rule-strip {
     grid-template-columns: 1fr;
+  }
+
+  .skill-cooldown-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stat-grid,

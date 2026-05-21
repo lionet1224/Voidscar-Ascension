@@ -94,6 +94,8 @@ export interface CombatSession {
   };
   cooldowns: Record<string, number>;
   lastCastAt: Record<string, number>;
+  powerFlags: Record<string, boolean>;
+  powerCounters: Record<string, number>;
   progress: number;
   emberValue: number;
   emberHeat: number;

@@ -74,6 +74,8 @@ export function applyLoot(materialState: Record<string, number>, character: Char
   const kept: Item[] = [];
   const materials = { ...materialState };
   let salvagedCount = 0;
+  const equippedIds = new Set(Object.values(character.equipment).filter(Boolean));
+  const hasSalvageCharm = character.inventory.some((item) => equippedIds.has(item.id) && item.legendaryPower?.id === "leg_salvage_charm");
   items.forEach((item) => {
     if (shouldKeepItem(item, filter, character)) {
       kept.push(item);
@@ -81,7 +83,7 @@ export function applyLoot(materialState: Record<string, number>, character: Char
       salvagedCount += 1;
       const gained = salvageItem(item);
       Object.entries(gained).forEach(([key, value]) => {
-        materials[key] = (materials[key] ?? 0) + value;
+        materials[key] = (materials[key] ?? 0) + Math.floor(value * (hasSalvageCharm ? 1.2 : 1));
       });
     }
   });

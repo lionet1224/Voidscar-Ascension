@@ -8,7 +8,7 @@ import { getCharacterInventory, getCurrentCharacter, isCurrentSeasonCharacter } 
 import { formatNumber } from "../../systems/id";
 import { rarityColor } from "../../systems/lootSystem";
 import { ItemTooltip } from "../components/ItemTooltip";
-import { BattleCanvas, ActorStatusPanel, SkillBreakdown, getSelectedActor } from "../components/BattleWidgets";
+import { BattleCanvas, ActorStatusPanel, SkillBreakdown, SkillCooldownBar, getSelectedActor } from "../components/BattleWidgets";
 import { NoCharacter, Stat } from "../components/common";
 import { battleStateLabels } from "../labels";
 import type { PageProps } from "../pageTypes";
@@ -54,6 +54,7 @@ export function BattlePage({ save, getBattleSession, setBattleSession, selectedA
         </div>
         {!playable && <p className="muted">旧纪道影不能进入秘境、天阶或神游，只能回看历史信息。</p>}
         <BattleCanvas getSession={getBattleSession} onSelectActor={setSelectedActorId} />
+        <SkillCooldownBar session={session} />
       </section>
       <section className="panel live-stats">
         <h2>实时统计</h2>

@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { CombatActor, CombatSession, SkillEffect } from "../../combat/combatTypes";
+import { getSkill } from "../../data/skills";
 import { formatNumber } from "../../systems/id";
 import { battleStateLabels } from "../labels";
 import { SkillTooltip } from "./InfoTooltip";
@@ -98,6 +99,42 @@ export function SkillBreakdown({ session }: { session: CombatSession }) {
   );
 }
 
+export function SkillCooldownBar({ session }: { session?: CombatSession }) {
+  if (!session) return <p className="muted skill-cooldown-empty">开始推演后，已装备战诀会在这里显示释放与冷却。</p>;
+  const skills = session.character.skillLoadout.skillIds
+    .slice(0, 5)
+    .map((id) => getSkill(id))
+    .filter((skill): skill is NonNullable<ReturnType<typeof getSkill>> => skill !== undefined);
+  return (
+    <div className="skill-cooldown-list" aria-label="战诀冷却">
+      {skills.map((skill) => {
+        const remaining = Math.max(0, session.cooldowns[skill.id] ?? 0);
+        const lastCastAt = session.lastCastAt[skill.id];
+        const elapsedSinceCast = lastCastAt === undefined ? undefined : session.elapsedMs - lastCastAt;
+        const totalCooldown = remaining > 0 && elapsedSinceCast !== undefined ? Math.max(1, remaining + elapsedSinceCast) : Math.max(1, skill.cooldownMs);
+        const progress = remaining > 0 ? Math.max(0, Math.min(1, 1 - remaining / totalCooldown)) : 1;
+        const justCast = elapsedSinceCast !== undefined && elapsedSinceCast < 650;
+        const state = justCast ? "casting" : remaining > 0 ? "cooling" : "ready";
+        const label = justCast ? "释放" : remaining > 0 ? `${(remaining / 1000).toFixed(1)}秒` : "可释放";
+        return (
+          <div
+            className={`skill-cooldown ${state} item-hover-scope`}
+            key={skill.id}
+            tabIndex={0}
+            style={{ "--cooldown-deg": `${Math.round(progress * 360)}deg`, "--cooldown-scale": progress } as CSSProperties}
+          >
+            <span className="skill-cooldown-icon">{skill.icon}</span>
+            <span className="skill-cooldown-name">{skill.name}</span>
+            <strong>{label}</strong>
+            <i />
+            <SkillTooltip skill={skill} rank={session.character.skillRanks[skill.id] ?? 1} casts={session.stats.skills[skill.id]?.casts ?? 0} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function getSelectedActor(session: CombatSession, actorId: string) {
   return [session.player, ...session.summons, ...session.monsters].find((actor) => actor.id === actorId) ?? session.player;
 }
@@ -144,12 +181,19 @@ function drawCombat(canvas: HTMLCanvasElement | null, session: CombatSession) {
   });
   session.summons.forEach((actor) => {
     ctx.beginPath();
-    ctx.fillStyle = "#0f766e";
+    const isDecoy = actor.sourceSkillId === "ranger_shadow_step";
+    ctx.fillStyle = isDecoy ? "rgba(99, 102, 241, 0.42)" : "#0f766e";
     ctx.arc(actor.position.x, actor.position.y, actor.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = "#ccfbf1";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = isDecoy ? "#6366f1" : "#ccfbf1";
+    ctx.lineWidth = isDecoy ? 3 : 2;
     ctx.stroke();
+    if (isDecoy) {
+      ctx.fillStyle = "#3730a3";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("影身", actor.position.x, actor.position.y - actor.radius - 8);
+    }
   });
   drawEffects(ctx, session);
   drawPlayer(ctx, session);
