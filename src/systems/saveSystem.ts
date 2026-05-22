@@ -78,9 +78,22 @@ function normalizeSave(save: GameSave): GameSave {
       highestRiftTier: save.unlocked?.highestRiftTier ?? 0,
     },
     combatReports: save.combatReports ?? [],
-    lootFilters: save.lootFilters?.length ? save.lootFilters : [createDefaultLootFilter()],
+    lootFilters: normalizeLootFilters(save),
     idleFarmConfig: idleCharacter?.status === "active" && idleCharacter.seasonId === CURRENT_SEASON_ID ? save.idleFarmConfig : undefined,
   };
+}
+
+function normalizeLootFilters(save: GameSave) {
+  if (!save.lootFilters?.length) return [createDefaultLootFilter()];
+  return save.lootFilters.map((filter) => {
+    const oldDefault =
+      filter.id === "default" &&
+      filter.keepRarities.length === 3 &&
+      filter.keepRarities.includes("epic") &&
+      filter.keepRarities.includes("legendary") &&
+      filter.keepRarities.includes("seasonalUnique");
+    return oldDefault ? { ...filter, keepRarities: createDefaultLootFilter().keepRarities } : filter;
+  });
 }
 
 function normalizeSeasons(save: GameSave) {

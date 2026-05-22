@@ -1,10 +1,11 @@
-import { eliteAffixes, familyTrashNames, getDungeon, getRiftBoss, getRiftModifiers, monsterScaling, monsterTemplates, riftPower } from "../data/dungeons";
+import { dungeons, eliteAffixes, familyTrashNames, getDungeon, getRiftBoss, getRiftModifiers, monsterScaling, monsterTemplates, riftPower } from "../data/dungeons";
 import { emberMechanic } from "../data/seasonDataPack";
 import { getSkill } from "../data/skills";
 import type { Character, CombatReport, Dungeon, Item, RewardBundle, Skill } from "../types";
 import { getEffectiveStats, getEquippedItems } from "../systems/characterSystem";
 import { decideNextSkill } from "../systems/skillRuleSystem";
 import { clamp, pick, uid } from "../systems/id";
+import { RIFT_TIER_CAP } from "../systems/contentUnlockSystem";
 import { createItem, rarityColor } from "../systems/lootSystem";
 import type { CombatActor, CombatSession, CombatStatusEffect, FloatingText, SkillEffect, Vector2 } from "./combatTypes";
 
@@ -77,7 +78,7 @@ export function createCombatSession(options: {
   const stats = getEffectiveStats(options.character, options.inventory);
   const equipped = getEquippedItems(options.character, options.inventory);
   const dungeon = options.riftTier ? undefined : getDungeon(options.dungeonId ?? "domain_qinglan_bamboo");
-  const tier = options.riftTier ?? 0;
+  const tier = options.riftTier ? Math.min(RIFT_TIER_CAP, Math.max(1, Math.floor(options.riftTier))) : 0;
   const contentName = tier ? `归墟天阶 ${tier} 层` : dungeon!.name;
   const riftBoss = tier ? getRiftBoss(tier) : undefined;
   const activeModifiers = tier ? getRiftModifiers(tier) : [];
@@ -103,12 +104,12 @@ export function createCombatSession(options: {
     skillTimer: 0,
     statusEffects: [],
   };
-  return {
+  const session: CombatSession = {
     id: uid("combat"),
     state: "running",
     contentName,
     dungeon,
-    riftTier: options.riftTier,
+    riftTier: tier || undefined,
     character: options.character,
     effectiveStats: stats,
     equippedPowerIds: equipped.flatMap((item) => [item.legendaryPower?.id, item.seasonalPower?.id]).filter(Boolean) as string[],
@@ -123,6 +124,7 @@ export function createCombatSession(options: {
     powerFlags: {},
     powerCounters: {},
     progress: 0,
+    expEarned: 0,
     emberValue: 0,
     emberHeat: 0,
     riftModifiers: activeModifiers.map((modifier) => modifier.name),
@@ -142,6 +144,11 @@ export function createCombatSession(options: {
       summonDamage: {},
     },
   };
+  spawnMonster(session, "trash");
+  if ((session.riftTier ?? 0) > 0 || getDungeonDifficultyIndex(session) >= 1) spawnMonster(session, "trash");
+  placeOpeningMonsters(session);
+  session.spawnTimer = 900;
+  return session;
 }
 
 export function tickCombat(session: CombatSession, deltaMs: number): CombatSession {
@@ -156,14 +163,14 @@ export function tickCombat(session: CombatSession, deltaMs: number): CombatSessi
   updateStatusEffects(next, deltaMs);
   decayCooldowns(next, deltaMs);
   if (next.progress < 100 && next.spawnTimer <= 0) {
-    spawnMonster(next, "trash");
-    if (Math.random() > 0.68) spawnMonster(next, Math.random() > 0.55 ? "ranged" : "shieldBearer");
+    spawnMonster(next, pickProgressMonsterType(next));
+    if (Math.random() > 0.68) spawnMonster(next, pickProgressMonsterType(next, true));
     next.spawnTimer = Math.max(520, 1300 - (next.riftTier ?? 0) * 8);
   }
   [25, 50, 75].forEach((milestone) => {
     if (!next.milestones[milestone] && next.progress >= milestone) {
       next.milestones[milestone] = true;
-      spawnMonster(next, "elite");
+      spawnMonster(next, next.riftTier || getDungeonDifficultyIndex(next) >= 1 ? "elite" : "trash");
     }
   });
   if (!next.milestones[100] && next.progress >= 100) {
@@ -546,7 +553,8 @@ function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) 
   const family = session.dungeon?.family ?? pick(["beast", "ghost", "demonic", "construct", "fiend"] as const);
   const tier = session.riftTier ?? 0;
   const scaling = monsterScaling(tier);
-  const localScale = session.riftTier ? 1 : 1 + session.character.level * 0.08;
+  const contentLevel = session.dungeon ? Math.max(1, session.dungeon.recommendedLevel[0]) : session.character.level;
+  const localScale = session.riftTier ? 1 : 1 + contentLevel * 0.08;
   const template = pickMonsterTemplate(family, type);
   const hpBase = type === "boss" ? template.baseHp * 5 : type === "elite" ? template.baseHp * 2.6 : template.baseHp;
   const damageBase = type === "boss" ? template.baseDamage * 2.2 : type === "elite" ? template.baseDamage * 1.45 : template.baseDamage;
@@ -565,7 +573,7 @@ function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) 
     resource: 0,
     maxResource: 0,
     shield: type === "shieldBearer" ? hpBase * localScale * scaling.hp * 0.25 : 0,
-    attack: damageBase * (session.riftTier ? scaling.damage : 1 + session.character.level * 0.045) * (1 + session.emberHeat * 0.02),
+    attack: damageBase * (session.riftTier ? scaling.damage : 1 + contentLevel * 0.045) * (1 + session.emberHeat * 0.02),
     armor: template.baseArmor * (type === "boss" ? 2.8 : type === "elite" ? 1.8 : 1) * scaling.armor,
     level: Math.max(1, session.character.level + Math.floor(tier / 4)),
     position: { x: ARENA / 2 + Math.cos(angle) * radius, y: ARENA / 2 + Math.sin(angle) * radius },
@@ -589,6 +597,19 @@ function spawnMonster(session: CombatSession, type: CombatActor["monsterType"]) 
   }
 }
 
+function placeOpeningMonsters(session: CombatSession) {
+  session.monsters.forEach((monster, index) => {
+    const angle = (Math.PI * 2 * index) / Math.max(1, session.monsters.length) + Math.random() * 0.35;
+    const preferredDistance = monster.monsterType === "ranged" ? 190 : monster.monsterType === "charger" ? 145 : 112;
+    monster.position = {
+      x: clamp(session.player.position.x + Math.cos(angle) * preferredDistance, 28, ARENA - 28),
+      y: clamp(session.player.position.y + Math.sin(angle) * preferredDistance, 28, ARENA - 28),
+    };
+    monster.attackTimer = Math.min(monster.attackTimer, 180);
+    monster.skillTimer = Math.min(monster.skillTimer ?? 9999, 900);
+  });
+}
+
 function pickMonsterTemplate(family: NonNullable<CombatActor["monsterType"]> extends never ? never : ReturnType<typeof getDungeon>["family"], type: CombatActor["monsterType"]) {
   if (type === "boss") {
     return monsterTemplates.find((monster) => monster.type === "boss" && monster.family === family) ?? monsterTemplates.find((monster) => monster.type === "boss")!;
@@ -608,6 +629,36 @@ function pickEliteMarks(tier: number) {
   });
   const count = tier >= 61 ? 3 : tier >= 20 ? 2 : 1;
   return Array.from({ length: count }, () => pick(available));
+}
+
+function pickProgressMonsterType(session: CombatSession, preferSpecial = false): CombatActor["monsterType"] {
+  const allowed = getAllowedProgressMonsterTypes(session);
+  if (!preferSpecial) return Math.random() < 0.72 || allowed.length === 1 ? "trash" : pick(allowed.filter((type) => type !== "trash") as CombatActor["monsterType"][]);
+  const specials = allowed.filter((type) => type !== "trash") as CombatActor["monsterType"][];
+  return specials.length ? pick(specials) : "trash";
+}
+
+function getAllowedProgressMonsterTypes(session: CombatSession): CombatActor["monsterType"][] {
+  if (session.riftTier) {
+    if (session.riftTier >= 50) return ["trash", "ranged", "charger", "shieldBearer", "healer", "summoner", "bomber"];
+    if (session.riftTier >= 25) return ["trash", "ranged", "charger", "shieldBearer", "bomber"];
+    if (session.riftTier >= 10) return ["trash", "ranged", "charger"];
+    return ["trash"];
+  }
+  const difficulty = getDungeonDifficultyIndex(session);
+  if (difficulty <= 0) return ["trash"];
+  if (difficulty === 1) return ["trash", "ranged"];
+  if (difficulty === 2) return ["trash", "ranged", "charger"];
+  if (difficulty === 3) return ["trash", "ranged", "charger", "bomber"];
+  if (difficulty === 4) return ["trash", "ranged", "charger", "shieldBearer", "healer"];
+  return ["trash", "ranged", "charger", "shieldBearer", "healer", "summoner", "bomber"];
+}
+
+function getDungeonDifficultyIndex(session: CombatSession) {
+  if (!session.dungeon) return 99;
+  const normalIndex = dungeons.findIndex((dungeon) => dungeon.id === session.dungeon?.id);
+  if (normalIndex >= 0) return normalIndex;
+  return Math.max(1, Math.floor((session.dungeon.recommendedLevel[0] - 10) / 10));
 }
 
 function maybeTriggerEmberJudgement(session: CombatSession) {
@@ -830,6 +881,7 @@ function separateCombatants(session: CombatSession) {
 function resolveMonsterSkills(session: CombatSession, deltaMs: number) {
   session.monsters.forEach((monster) => {
     if (monster.hp <= 0 || monster.statusEffects.some((status) => status.id === "freeze" || status.id === "stun")) return;
+    if (!session.riftTier && getDungeonDifficultyIndex(session) <= 0 && monster.monsterType !== "boss") return;
     monster.skillTimer = (monster.skillTimer ?? getMonsterSkillCooldown(monster.monsterType)) - deltaMs;
     if ((monster.skillTimer ?? 0) > 0) return;
     monster.skillTimer = (monster.skillCooldown ?? getMonsterSkillCooldown(monster.monsterType)) * (0.86 + Math.random() * 0.28);
@@ -998,6 +1050,9 @@ function cleanup(session: CombatSession) {
     if (monster.hp > 0) return true;
     rollMonsterDrop(session, monster);
     session.kills += 1;
+    const exp = expForMonster(session, monster);
+    session.expEarned += exp;
+    if (exp > 0) float(session, monster.position, "悟", `+${exp}`, "resource", exp);
     const baseProgress = monster.monsterType === "boss" ? 0 : monster.monsterType === "elite" ? 8 : monster.monsterType === "ranged" || monster.monsterType === "summoner" || monster.monsterType === "healer" ? 3 : 2.4;
     const progressValue = baseProgress * (hasEquippedPower(session, "leg_progress_charm") ? 1.1 : 1);
     if (monster.monsterType === "elite") {
@@ -1054,6 +1109,13 @@ function rollMonsterDrop(session: CombatSession, monster: CombatActor) {
       durationMs: 900,
     });
   }
+}
+
+function expForMonster(session: CombatSession, monster: CombatActor) {
+  const base = monster.monsterType === "boss" ? 20 : monster.monsterType === "elite" ? 10 : 5;
+  const tierBonus = session.riftTier ? 1 + Math.min(2.4, session.riftTier * 0.025) : 1;
+  const dungeonBonus = session.dungeon ? 1 + Math.max(0, session.dungeon.recommendedLevel[0] - 1) * 0.035 : 1;
+  return Math.floor(base * tierBonus * dungeonBonus);
 }
 
 function applySkillStatuses(target: CombatActor, skill: Skill, session: CombatSession) {

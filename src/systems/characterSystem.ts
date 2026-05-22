@@ -45,7 +45,7 @@ export function createDefaultLootFilter(): LootFilter {
   return {
     id: "default",
     name: "默认拾取",
-    keepRarities: ["epic", "legendary", "seasonalUnique"],
+    keepRarities: ["normal", "magic", "rare", "epic", "legendary", "seasonalUnique"],
     autoSalvageBelowRarity: "rare",
     minItemPowerToKeep: 0,
     keepAffixIds: [],

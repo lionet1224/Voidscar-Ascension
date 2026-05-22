@@ -5,6 +5,7 @@ import { rarityLabels } from "../../data/affixes";
 import { createCombatSession } from "../../combat/combatEngine";
 import type { CombatSession } from "../../combat/combatTypes";
 import { getCharacterInventory, getCurrentCharacter, isCurrentSeasonCharacter } from "../../systems/characterSystem";
+import { clampRiftTier, getMaxChallengeRiftTier, getUnlockedDungeons, isDungeonUnlocked } from "../../systems/contentUnlockSystem";
 import { formatNumber } from "../../systems/id";
 import { rarityColor } from "../../systems/lootSystem";
 import { ItemTooltip } from "../components/ItemTooltip";
@@ -26,12 +27,24 @@ export function BattlePage({ save, getBattleSession, setBattleSession, selectedA
     return () => window.clearInterval(handle);
   }, [getBattleSession]);
 
+  useEffect(() => {
+    if (!character) return;
+    const unlocked = getUnlockedDungeons(character);
+    if (unlocked.length && !unlocked.some((dungeon) => dungeon.id === dungeonId)) setDungeonId(unlocked[0].id);
+    setRiftTier(clampRiftTier(character, riftTier));
+  }, [character?.id, character?.level, character?.completedDungeons.join(","), character?.highestRiftTier]);
+
   if (!character) return <NoCharacter />;
   const playable = isCurrentSeasonCharacter(character);
+  const unlockedDungeons = getUnlockedDungeons(character);
+  const selectedDungeon = allDungeons.find((dungeon) => dungeon.id === dungeonId) ?? unlockedDungeons[0] ?? allDungeons[0];
+  const canRunDungeon = isDungeonUnlocked(character, selectedDungeon);
+  const maxRiftTier = getMaxChallengeRiftTier(character);
+  const selectedRiftTier = clampRiftTier(character, riftTier);
   const start = () => {
-    if (!playable) return;
+    if (!playable || (mode === "normal" && !canRunDungeon) || (mode === "rift" && maxRiftTier <= 0)) return;
     setSelectedActorId("player");
-    const next = createCombatSession({ character, inventory: getCharacterInventory(save, character), dungeonId, riftTier: mode === "rift" ? riftTier : undefined });
+    const next = createCombatSession({ character, inventory: getCharacterInventory(save, character), dungeonId: selectedDungeon.id, riftTier: mode === "rift" ? selectedRiftTier : undefined });
     setBattleSession(next);
     setSessionView(next);
   };
@@ -45,14 +58,15 @@ export function BattlePage({ save, getBattleSession, setBattleSession, selectedA
           </div>
           {mode === "normal" ? (
             <select value={dungeonId} onChange={(event) => setDungeonId(event.target.value)}>
-              {allDungeons.map((dungeon) => <option key={dungeon.id} value={dungeon.id}>{dungeon.kind === "material" ? "材料 · " : ""}{dungeon.name}</option>)}
+              {unlockedDungeons.map((dungeon) => <option key={dungeon.id} value={dungeon.id}>{dungeon.kind === "material" ? "材料 · " : ""}{dungeon.name}</option>)}
             </select>
           ) : (
-            <input type="number" min={1} max={character.highestRiftTier + 1} value={riftTier} onChange={(event) => setRiftTier(Number(event.target.value))} />
+            <input type="number" min={1} max={maxRiftTier || 1} value={selectedRiftTier} onChange={(event) => setRiftTier(clampRiftTier(character, Number(event.target.value)))} />
           )}
-          <button className="primary" disabled={!playable} onClick={start}><CirclePlay size={17} /> 开始</button>
+          <button className="primary" disabled={!playable || (mode === "normal" && !canRunDungeon) || (mode === "rift" && maxRiftTier <= 0)} onClick={start}><CirclePlay size={17} /> 开始</button>
         </div>
         {!playable && <p className="muted">旧纪道影不能进入秘境、天阶或神游，只能回看历史信息。</p>}
+        {mode === "rift" && maxRiftTier <= 0 && <p className="muted">归墟天阶需要达到 30 级并通关断剑荒冢。</p>}
         <BattleCanvas getSession={getBattleSession} onSelectActor={setSelectedActorId} />
         <SkillCooldownBar session={session} />
       </section>
@@ -63,6 +77,7 @@ export function BattlePage({ save, getBattleSession, setBattleSession, selectedA
             <Stat title="状态" value={battleStateLabels[session.state]} />
             <Stat title="进度" value={`${Math.floor(session.progress)}%`} />
             <Stat title="击杀" value={`${session.kills}`} />
+            <Stat title="本轮经验" value={formatNumber(session.expEarned)} />
             <Stat title="总伤害" value={formatNumber(session.stats.totalDamage)} />
             <section className="live-drop-list">
               <div className="live-drop-head">

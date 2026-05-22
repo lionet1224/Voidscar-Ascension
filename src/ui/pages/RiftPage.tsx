@@ -1,5 +1,6 @@
 import { eliteAffixes, riftPower } from "../../data/dungeons";
 import { getCurrentCharacter, isCurrentSeasonCharacter } from "../../systems/characterSystem";
+import { getMaxChallengeRiftTier, isRiftUnlocked, RIFT_TIER_CAP } from "../../systems/contentUnlockSystem";
 import { formatNumber } from "../../systems/id";
 import { NoCharacter } from "../components/common";
 import type { PageProps } from "../pageTypes";
@@ -8,7 +9,8 @@ export function RiftPage({ save, mutate, setPage }: PageProps) {
   const character = getCurrentCharacter(save);
   if (!character) return <NoCharacter />;
   const stable = Math.max(0, character.highestRiftTier - 2);
-  const canUnlock = character.level >= 30 || character.completedDungeons.includes("domain_broken_sword_barrow");
+  const canUnlock = isRiftUnlocked(character);
+  const nextTier = getMaxChallengeRiftTier(character);
   const playable = isCurrentSeasonCharacter(character);
   return (
     <div className="page-grid">
@@ -16,9 +18,9 @@ export function RiftPage({ save, mutate, setPage }: PageProps) {
         <div>
           <span className="eyebrow">终局玩法</span>
           <h1>归墟天阶</h1>
-          <p>最高 {character.highestRiftTier} 层 · 稳定神游 {stable} 层 · 下一层推荐战力 {formatNumber(riftPower(character.highestRiftTier + 1))}</p>
+          <p>最高 {character.highestRiftTier} 层 · 稳定神游 {stable} 层 · 下一层推荐战力 {formatNumber(riftPower(Math.max(1, nextTier || 1)))}</p>
         </div>
-        <button className="primary" disabled={!canUnlock || !playable} onClick={() => setPage("battle")}>挑战下一层</button>
+        <button className="primary" disabled={!canUnlock || !playable || character.highestRiftTier >= RIFT_TIER_CAP} onClick={() => setPage("battle")}>挑战下一层</button>
       </section>
       <section className="panel">
         <h2>神游历练</h2>

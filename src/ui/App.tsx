@@ -20,7 +20,7 @@ import { CURRENT_SEASON_ID, CURRENT_VERSION, currentSeasonDefinition } from "../
 import { createCombatSession, makeCombatReport, tickCombat } from "../combat/combatEngine";
 import type { CombatSession } from "../combat/combatTypes";
 import type { GameSave, IdleClaimSummary } from "../types";
-import { addExp, getCharacterInventory, getCurrentCharacter } from "../systems/characterSystem";
+import { addExp, createDefaultLootFilter, getCharacterInventory, getCurrentCharacter } from "../systems/characterSystem";
 import { loadSave, saveGame } from "../systems/saveSystem";
 import { applyLoot } from "../systems/lootSystem";
 import { formatNumber } from "../systems/id";
@@ -140,6 +140,7 @@ export default function App() {
   const settleCombat = (finalSession: CombatSession) => {
     if (completedCombatIds.current.has(finalSession.id)) return;
     completedCombatIds.current.add(finalSession.id);
+    let restartSession: CombatSession | undefined;
     setSave((current) => {
       if (!current) return current;
       const character = current.characters.find((entry) => entry.id === finalSession.character.id);
@@ -147,12 +148,12 @@ export default function App() {
       const success = finalSession.state === "success";
       const riftTier = finalSession.riftTier ?? 0;
       const dungeonId = finalSession.dungeon?.id;
-      const filter = current.lootFilters[0];
+      const filter = current.lootFilters[0] ?? createDefaultLootFilter();
       const inventory = getCharacterInventory(current, character);
       const loot = applyLoot(character.materials, character, finalSession.droppedItems ?? [], filter);
       const gold = success ? Math.floor(80 + character.level * 22 + riftTier * 30) : 15;
       const rewards = {
-        exp: success ? Math.floor(120 + character.level * 35 + riftTier * 40) : 25,
+        exp: finalSession.expEarned,
         gold,
         embers: success ? 8 + Math.floor((riftTier || 1) * 0.8) : 1,
         materials: { ...loot.materials, gold: (loot.materials.gold ?? 0) + gold, spirit_stone: (loot.materials.spirit_stone ?? 0) + gold },
@@ -161,28 +162,41 @@ export default function App() {
       };
       const report = makeCombatReport(finalSession, rewards);
       const updatedCharacter = addExp(character, rewards.exp);
+      const nextInventory = [...inventory, ...loot.kept];
       const completedDungeons = !riftTier && dungeonId && success
         ? Array.from(new Set([...(character.completedDungeons ?? []), dungeonId]))
         : character.completedDungeons;
+      const nextCharacter = {
+        ...updatedCharacter,
+        inventory: nextInventory,
+        materials: rewards.materials,
+        completedDungeons,
+        seasonEmbers: character.seasonEmbers + rewards.embers,
+        highestRiftTier: riftTier && success ? Math.max(character.highestRiftTier, riftTier) : character.highestRiftTier,
+        stableIdleRiftTier: riftTier && success ? Math.max(0, Math.max(character.highestRiftTier, riftTier) - 2) : character.stableIdleRiftTier,
+        totalPlayTimeSeconds: character.totalPlayTimeSeconds + Math.floor(finalSession.elapsedMs / 1000),
+      };
+      restartSession = createCombatSession({
+        character: nextCharacter,
+        inventory: nextInventory,
+        dungeonId,
+        riftTier: riftTier || undefined,
+      });
+      battleSessionRef.current = restartSession;
       return {
         ...current,
         characters: current.characters.map((entry) =>
           entry.id === character.id
-            ? {
-                ...updatedCharacter,
-                inventory: [...inventory, ...loot.kept],
-                materials: rewards.materials,
-                completedDungeons,
-                seasonEmbers: character.seasonEmbers + rewards.embers,
-                highestRiftTier: riftTier && success ? Math.max(entry.highestRiftTier, riftTier) : entry.highestRiftTier,
-                stableIdleRiftTier: riftTier && success ? Math.max(0, Math.max(entry.highestRiftTier, riftTier) - 2) : entry.stableIdleRiftTier,
-                totalPlayTimeSeconds: entry.totalPlayTimeSeconds + Math.floor(finalSession.elapsedMs / 1000),
-              }
+            ? nextCharacter
             : entry,
         ),
         combatReports: [report, ...current.combatReports].slice(0, 40),
       };
     });
+    if (restartSession) {
+      battleSessionRef.current = restartSession;
+      setSelectedActorId("player");
+    }
   };
 
   useEffect(() => {

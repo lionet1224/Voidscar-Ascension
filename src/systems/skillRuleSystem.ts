@@ -32,7 +32,8 @@ export function decideNextSkill(context: RuleContext): Skill | null {
     const skill = getSkill(rule.skillId);
     if (!skill || !context.canCast(skill)) continue;
     const lastCast = context.lastCastAt[rule.skillId];
-    if (rule.minIntervalMs && lastCast !== undefined && context.now - lastCast < rule.minIntervalMs) continue;
+    const customInterval = rule.minIntervalMs && rule.minIntervalMs !== skill.cooldownMs ? rule.minIntervalMs : 0;
+    if (customInterval && lastCast !== undefined && context.now - lastCast < customInterval) continue;
     if (matchAnyConditionGroup(rule, context, skill)) return skill;
   }
   return getBasicSkill(context.character);

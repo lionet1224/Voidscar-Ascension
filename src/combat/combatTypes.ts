@@ -99,6 +99,7 @@ export interface CombatSession {
   powerFlags: Record<string, boolean>;
   powerCounters: Record<string, number>;
   progress: number;
+  expEarned: number;
   emberValue: number;
   emberHeat: number;
   riftModifiers?: string[];

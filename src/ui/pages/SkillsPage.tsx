@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { resourceNames } from "../../data/classes";
 import { getClassSkillTree, getSkill } from "../../data/skills";
-import type { SkillCastRule, SkillConditionType } from "../../types";
+import type { SkillCastRule, SkillCondition, SkillConditionType } from "../../types";
 import {
   getActiveProfile,
   getAvailableSkillPoints,
@@ -43,6 +43,11 @@ export function SkillsPage({ save, mutate }: PageProps) {
         };
       }),
     }));
+  };
+
+  const updateFirstCondition = (skillId: string, patch: Partial<SkillCondition>) => {
+    const current = rulesBySkill.get(skillId)?.conditionGroups[0]?.conditions[0] ?? { type: "always" as const };
+    updateRule(skillId, { conditionGroups: [{ logic: "AND", conditions: [{ ...current, ...patch }] }] });
   };
 
   const setRank = (skillId: string, delta: 1 | -1) => {
@@ -142,20 +147,35 @@ export function SkillsPage({ save, mutate }: PageProps) {
                     <select
                       disabled={readonly}
                       value={condition?.type ?? "always"}
-                      onChange={(event) =>
-                        updateRule(skill.id, {
-                          conditionGroups: [{ logic: "AND", conditions: [{ ...(condition ?? { type: "always" }), type: event.target.value as SkillConditionType }] }],
-                        })
-                      }
+                      onChange={(event) => updateFirstCondition(skill.id, { type: event.target.value as SkillConditionType })}
                     >
                       <option value="always">总是</option>
                       <option value="resourceAbove">资源高于</option>
+                      <option value="resourceBelow">资源低于</option>
+                      <option value="hpAbove">生命高于</option>
                       <option value="hpBelow">生命低于</option>
                       <option value="enemyCountNearby">附近敌人数</option>
                       <option value="eliteExists">精英劫煞存在</option>
                       <option value="bossExists">劫主存在</option>
+                      <option value="targetHpBelow">目标生命低于</option>
                       <option value="summonCountBelow">召唤物不足</option>
                       <option value="shieldBelow">护盾低于</option>
+                      <option value="progressAbove">秘境进度高于</option>
+                      <option value="progressBelow">秘境进度低于</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>比较</span>
+                    <select
+                      disabled={readonly}
+                      value={condition?.operator ?? defaultOperator(condition?.type)}
+                      onChange={(event) => updateFirstCondition(skill.id, { operator: event.target.value as SkillCondition["operator"] })}
+                    >
+                      <option value=">=">不低于</option>
+                      <option value="<=">不高于</option>
+                      <option value=">">高于</option>
+                      <option value="<">低于</option>
+                      <option value="==">等于</option>
                     </select>
                   </label>
                   <label>
@@ -164,11 +184,18 @@ export function SkillsPage({ save, mutate }: PageProps) {
                       disabled={readonly}
                       type="number"
                       value={Number(condition?.value ?? 0)}
-                      onChange={(event) =>
-                        updateRule(skill.id, {
-                          conditionGroups: [{ logic: "AND", conditions: [{ ...(condition ?? { type: "always" }), value: Number(event.target.value) }] }],
-                        })
-                      }
+                      onChange={(event) => updateFirstCondition(skill.id, { value: Number(event.target.value) })}
+                    />
+                  </label>
+                  <label>
+                    <span>最小间隔(ms)</span>
+                    <input
+                      disabled={readonly}
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={rule?.minIntervalMs ?? 0}
+                      onChange={(event) => updateRule(skill.id, { minIntervalMs: Number(event.target.value) || undefined })}
                     />
                   </label>
                 </div>
@@ -179,6 +206,12 @@ export function SkillsPage({ save, mutate }: PageProps) {
       </section>
     </div>
   );
+}
+
+function defaultOperator(type?: SkillConditionType) {
+  if (type === "hpBelow" || type === "resourceBelow" || type === "targetHpBelow" || type === "shieldBelow" || type === "progressBelow") return "<=";
+  if (type === "summonCountBelow") return "<";
+  return ">=";
 }
 
 function skillResourceText(skill: { resourceCost: number; resourceGain?: number }, resourceName: string) {
